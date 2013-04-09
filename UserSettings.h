@@ -5,7 +5,7 @@
 
 /* This type is a precision in calculation with real numbers.
 Important! It should be support in the cuda*/
-typedef double real;
+typedef float real;
 
 /* This type - is a (maximum size) number of pointers or polygons or faces in the model.
 Important! It should be support in the cuda

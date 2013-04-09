@@ -108,7 +108,7 @@ void InitSettings() {
 		object = LoadOBJ(Argv[1]);
 		printf("File loaded.\n");
 	}
-
+	else Keyboard('L', 0,0);
 }
 ;
 
@@ -136,14 +136,18 @@ void TEMP_CHECK_FUNCTION() {
 
 	if (!TryOne) {
 		mesh = CreateCalcMesh(ReturnObjMesh(object));
+		printf("DEBUG CreatedCalcMesh\n");
+
 		GPU_example(mesh);
+		printf("DEBUG GPU exampled\n");
 		//ToCountFirstFaces(&light, mesh);
 		//time = GetTickCount();
 
 		//ToCountSecondAndDoubleFaces(mesh);
-		//time = GetTickCount() - time;
+		//time = GetTickCount() - time;		
 
 		CopyResults(mesh, ReturnObjMesh(object));
+		printf("DEBUG Copied Results\n");
 		TryOne = 1;
 		/*		for (iter=0; iter < mesh->NumberOfFaces; iter++)
 		 {
@@ -261,7 +265,7 @@ void Keyboard(unsigned char Key, int x, int y) {
 
 		/* get a file dialog to find the file to load */
 		//if (OpenFileDialog(filename)) {
-			printf("%s\n", filename);
+			//printf("%s\n", filename);
 			printf("Loading file... Please Wait...\n");
 			/* attempt to load the file */
 			object = LoadOBJ(filename);

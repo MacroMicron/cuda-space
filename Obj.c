@@ -186,7 +186,7 @@ ObjFile LoadOBJ(const char *filename)
 	**	What we can therefore do now, is load up all of the data in the file easily.
 	*/
 	fp = fopen(filename,"r");
-
+	
 	while(fgets(buffer,255,fp) != NULL)
 	{	/*	Grab a line at a time	*/
 

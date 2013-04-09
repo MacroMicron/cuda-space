@@ -61,7 +61,7 @@ extern "C" {
 	** Return pointer to ObjMesh structure by his ID ObjFile.
 	** Used for creating CalcMesh
 	*/
-//	ObjMesh* ReturnObjMesh(ObjFile objFile);
+	//ObjMesh* ReturnObjMesh(ObjFile objFile);
 
 
 

@@ -374,7 +374,7 @@ void ToCountFirstFaces(CalcVertex *light, CalcMesh *mesh)
 {
 	CalcVertex centroid;
 	//int temp;
-	for(integer i = 0; i < mesh->NumberOfFaces; i++)
+	for(integer i = 0; i < mesh->NumberOfFaces; i++ )
 	{
 		//for triangles-polygons
 		if (mesh->Faces[i].VertexCount == 3)
@@ -435,13 +435,12 @@ __global__
 void cudaToCountFirstFaces(CalcVertex light, CalcMesh* mesh, float* ret)
 {
 	CalcVertex centroid;
-	integer intersections, i, j;
+	integer i; //intersections, i, j;
 	i = threadIdx.x + blockIdx.x * blockDim.x;// + beginFrom;
 	//int temp;
 	//mesh->NumberOfFaces=1;
 	//for(i=0; i< mesh->NumberOfFaces; i++)
 	//if ((i >= beginFrom) && (i < beginFrom + 1))
-	*ret = 99;
 	if(i < mesh->NumberOfFaces)
 	{
 		//for triangles-polygons
@@ -460,32 +459,32 @@ void cudaToCountFirstFaces(CalcVertex light, CalcMesh* mesh, float* ret)
 			if (IsSegmentIntersectModel(&light, &centroid, mesh) == 0)
 				mesh->TypesOfFaces[i] = FIRST_VISION;
 			else mesh->TypesOfFaces[i] = OTHER_VISION;
+			
+				
 
-
+		
+//	if (i==2150) 	{
+//		*ret = IsSegmentIntersectModel(&light, &centroid, mesh) + 2150;
+//			
+//			}
 		}
     }
-
-
-
-	//\E4\EB\FF \F7\E5\F2\FB\F0\E5\F5\F3\E3\EE\EB\FC\ED\E8\EA\EE\E2 \E2\FB\EF\F3\EA\EB\FB\F5: \F1\E5\F0\E5\E4\E8\ED\E0 \F1\E5\F0\E5\E4\E8\ED\FB \EE\F2\F0\E5\E7\EA\E0, \FF\E2\EB\FF\FE\F9\E5\E3\EE\F1\FF \F1\F0\E5\E4\ED\E5\E9 \EB\E8\ED\E8\E8
-
-
-	//\EE\F2\E4\E5\EB\FC\ED\EE \E4\EB\FF \F7\E5\F2\F0\FB\F5\F3\E3\EE\EB\ED\E8\EA\EE\E2 \E2\EF\F3\EA\EB\FB\F5
-
+*ret = 99;
 }
 
 
 //to count second faces ONLY AFTER first faces has been defined!
 //(by segments [centroid of first face polygon; centroid of not first face polygon])
 __host__ __device__
-void ToCountSecondAndDoubleFaces(CalcMesh *mesh)
-{
-	//just only for triangle-polygons now
-	integer i,j;
-	CalcVertex centroidFirst, centroidOther, temp;
-	//for {all first_vision face polygons}
-	for (i=0; i < mesh->NumberOfFaces; i++)
-		if ((mesh->TypesOfFaces[i] == FIRST_VISION)&&(mesh->Faces[i].VertexCount == 3))
+	//	for (integer j=0; j < mesh->NumberOfFaces/(65535*prop.maxThreadsPerBlock)+1; j++) 
+	void ToCountSecondAndDoubleFaces(CalcMesh *mesh)
+	{
+		//just only for triangle-polygons now
+		integer i,j;
+		CalcVertex centroidFirst, centroidOther, temp;
+		//for {all first_vision face polygons}
+		for (i=0; i < mesh->NumberOfFaces; i++)
+			if ((mesh->TypesOfFaces[i] == FIRST_VISION)&&(mesh->Faces[i].VertexCount == 3))
 		{
 			GET_CENTROID(centroidFirst.x, centroidFirst.y, centroidFirst.z,
 				___XPointFrom(mesh->Faces + i, 0), ___YPointFrom(mesh->Faces + i, 0), ___ZPointFrom(mesh->Faces + i, 0),
@@ -528,7 +527,7 @@ void ToCountSecondAndDoubleFaces(CalcMesh *mesh)
 
 
 __global__
-void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh)
+void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret)
 {
 	//just only for triangle-polygons now
 	integer i,j;
@@ -571,6 +570,9 @@ void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh)
 		//else if non-triangle ...
 		//...
 		//..
+
+
+	*ret = 99;
 }
 
 
@@ -703,35 +705,35 @@ void GPU_example(CalcMesh* mesh)
 	//DWORD time;
 
 	GPU_tester<<<1, 1>>>(cuda_mesh, temp, &light);
-//	for (integer j=0; j < mesh->NumberOfFaces/(65535*prop.maxThreadsPerBlock)+1; j++) 
+
 	{
-		cudaToCountFirstFaces<<< 100, 100>>>(light, cuda_mesh, temp);
-		//ToCountFirstFaces(&light, cuda_mesh);
-//{cudaToCountFirstFaces<<< 65535, prop.maxThreadsPerBlock>>>(light, cuda_mesh, j*1000,temp);
-	//	printf("max threades : %d x %d\n",prop.maxThreadsPerBlock);
-	//	cudaToCountFirstFaces<<< 1, 1>>>(light, cuda_mesh, temp);
-
-
-	//time = GetTickCount();
-
-	//cudaToCountSecondAndDoubleFaces<<< (mesh->NumberOfFaces + prop.maxThreadsPerBlock - 1) / prop.maxThreadsPerBlock, prop.maxThreadsPerBlock>>>(cuda_mesh);
-	//time = time - GetTickCount();
-
-			//ToCountFirstFaces(&light, cuda_mesh);
-
-
-
+		printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
+		cudaToCountFirstFaces<<< 60000, prop.maxThreadsPerBlock-150>>>(light, cuda_mesh, temp);
+		
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
-		printf("GPU: test:%f \n", temp2);
+		printf("DEBUG: it's resulsts %f \n", temp2);
+
+//DEBUG		cudaToCountSecondAndDoubleFaces<<< 50000, prop.maxThreadsPerBlock-150>>>(cuda_mesh, temp);
+//DEBUG		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
+//DEBUG		printf("GPU test 2:%f \n", temp2);
 	}
-//	printf("time: %i\n", time);
-
-
-	//\EC\EE\E6\ED\EE \F3\EF\F0\EE\F1\F2\E8\F2\FC, \ED\E0\EF\F0\E8\EC\E5\F0, \EF\E5\F0\E5\E4\E0\E2\E0\F2\FC \ED\E5 \F1\F1\FB\EB\EA\F3 \ED\E0 \EE\E1\FA\E5\EA\F2 \E2 gputester, \E0 \F1\E0\EC \EE\E1\FA\E5\EA\F2
-
-
 
 	cudaMemcpy(mesh->TypesOfFaces, temp_mesh.TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned char), cudaMemcpyDeviceToHost);
+
+	int j;
+	//from 2000 to 2200 - good faces for experiments in  ham
+	//for (j=800; j<1000; j++)		
+	//mesh->TypesOfFaces[2150] = 2;
+	
+/*CPU	{
+	//time = GetTickCount();
+		ToCountFirstFaces(&light, mesh);
+		ToCountSecondAndDoubleFaces(mesh);		
+	//time = time - GetTickCount();
+//	printf("time: %i\n", time);
+	}
+*/
+
 
 	//--------------------------------------------------------
 	//free memory
@@ -741,5 +743,4 @@ void GPU_example(CalcMesh* mesh)
 	cudaFree(temp_mesh.VertexArray);
 
 
-	//printf("ok\n");
 }
