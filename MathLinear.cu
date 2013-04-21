@@ -19,7 +19,7 @@
 #endif
 
 //#define PRECISION 0.00001
-#define PRECISION 0.001
+#define PRECISION 0.1
 
 
 #define SGN(a)		( (a)>0 ? 1 : ((a)<0?-1:0) )
@@ -171,7 +171,8 @@ Bool PointInPolygon(CalcVertex *point, CalcFace *face)
 		//choose the plane for projection:
 		unsigned char coordinate1, coordinate2;
 		CHOISE_PROJECTION(___PlaneFrom(face), coordinate1, coordinate2);
-		if (___DimOf(face)==4) { //if non-convex 4-dimension
+		if (___DimOf(face)==4) { 
+			//if non-convex 4-dimension
 			//need in manual control do different convex and non-convex => copy of function IsSegmentIntersected2D:
 			real a1,b1,c1, a2,b2,c2, kramer_determinant, IntersectionPoint[2], triag[2][9]; //\EF\F0\E5\EE\E1\F0\E0\E7\EE\E2\E0\F2\FC \E2 \F2\EE\F7\EA\E8
 			bool diag[2];
@@ -228,7 +229,10 @@ Bool PointInPolygon(CalcVertex *point, CalcFace *face)
 				return (diag[0]||diag[1]);	//no recusre in CUDA - no "return (PointInPolygon(point, triag1, polygon_plane, 3)||PointInPolygon(point, triag2, polygon_plane, 3)); //trianglyed it!"
 			}
 		}
-		for (unsigned char i=0; i < ___DimOf(face); i++)
+		//DEBUG
+		//coordinate1 = 1;
+		//coordinate2 = 2;
+		for (unsigned char i=0; i < ___DimOf(face); i++) {			
 			if ( !ON_ONE_SIDE(
 					___XYZOf(point, coordinate1), ___XYZOf(point, coordinate2),
 					___XYZPointFrom(face, i, coordinate1),
@@ -238,6 +242,22 @@ Bool PointInPolygon(CalcVertex *point, CalcFace *face)
 					___XYZPointFrom(face, (i+2) % ___DimOf(face), coordinate1),
 					___XYZPointFrom(face, (i+2) % ___DimOf(face), coordinate2))
 			   ) return false;
+//DEBUG			
+			printf("%d for (%f,%f) and (%f,%f)\n", 			
+			!ON_ONE_SIDE(
+                                        ___XYZOf(point, coordinate1), ___XYZOf(point, coordinate2),
+                                        ___XYZPointFrom(face, 0, coordinate1),
+                                        ___XYZPointFrom(face, 0, coordinate2),
+                                        ___XYZPointFrom(face, (0+1) % ___DimOf(face), coordinate1),
+                                        ___XYZPointFrom(face, (0+1) % ___DimOf(face), coordinate2),
+                                        ___XYZPointFrom(face, (0+2) % ___DimOf(face), coordinate1),
+                                        ___XYZPointFrom(face, (0+2) % ___DimOf(face), coordinate2)),
+			___XYZPointFrom(face, 0, coordinate1),  ___XYZPointFrom(face, 0, coordinate2),
+			___XYZOf(point, coordinate1), ___XYZOf(point, coordinate2)			
+			);
+			
+
+		}
 		return true;
 	}
 	return false;
@@ -252,7 +272,7 @@ Bool IsSegmentIntersectPolygon(CalcVertex *point1, CalcVertex *point2,
 					 ___PlaneFrom(face)[1] * ( ___YOf(point2) - ___YOf(point1) ) +
 					 ___PlaneFrom(face)[2] * ( ___ZOf(point2) - ___ZOf(point1) ) );
 	CalcVertex IntersectionPoint;
-	if (temp) //if polygon and segment are not parallel
+	if (!NEAR_0(temp)) //if polygon and segment are not parallel
 	{
 			IntersectionPoint.x=(  ___PlaneFrom(face)[3] * (___XOf(point2) - ___XOf(point1)) +
 								   ___PlaneFrom(face)[1] * (___YOf(point1)*___XOf(point2) - ___XOf(point1)*___YOf(point2)) +
@@ -265,7 +285,8 @@ Bool IsSegmentIntersectPolygon(CalcVertex *point1, CalcVertex *point2,
 								   ___PlaneFrom(face)[1] * (___YOf(point1)*___ZOf(point2) - ___ZOf(point1)*___YOf(point2)) ) / temp;
 			//if IntersectionPoint in segment:
 			if (POINT_IN_SEGMENT_3D( (real*)&IntersectionPoint, (real*)point1, (real*)point2 ))
-				if (PointInPolygon(&IntersectionPoint, face)) return true;
+				if (PointInPolygon(&IntersectionPoint, face)) 
+							return true;
 	}
 	else {
 		if ((point1->x == point2->x)&&(point1->y == point2->y)&&(point1->z == point2->z))
@@ -294,14 +315,22 @@ __host__ __device__
 integer IsSegmentIntersectModel(CalcVertex *point1, CalcVertex *point2, CalcMesh *mesh)
 {
 	integer intersections = 0;
+	//DEBUG if 	
+//	if ((point2->x == -34.475559)&&(point2->y==143.815369)&&(point2->z==-271.077057))
+//	{
+//		if (IsSegmentIntersectPolygon(point1, point2, &mesh->Faces[23127]))
+//		intersections = 101;
+//		else intersections = 100;	
+//	}
+//	else
 	for (integer i=0; i < mesh->NumberOfFaces; i++)
 	{
 		if(IsSegmentIntersectPolygon(point1, point2, &mesh->Faces[i]))
 		{
-			intersections++;
-			//printf("Intersections with face number: %i\n", i);
+			intersections++;	
 		}
 	}
+	
 	return intersections;
 }
 
@@ -453,6 +482,7 @@ void cudaToCountFirstFaces(CalcVertex light, CalcMesh* mesh, float* ret)
 				___XPointFrom(mesh->Faces + i, 2), ___YPointFrom(mesh->Faces + i, 2), ___ZPointFrom(mesh->Faces + i, 2));
 			//the face include centroid => intersections >= 1
 
+			//change centroid on delta:
 			DECREASE_SEGMENT_TO_INTERVAL_3D(centroid.x, centroid.y, centroid.z,
 				light.x, light.y, light.z);
 
@@ -462,14 +492,15 @@ void cudaToCountFirstFaces(CalcVertex light, CalcMesh* mesh, float* ret)
 			
 				
 
-		
-//	if (i==2150) 	{
-//		*ret = IsSegmentIntersectModel(&light, &centroid, mesh) + 2150;
-//			
-//			}
+//2150 for eleham.obj		
+	if (i==2150) 	{
+		*ret = IsSegmentIntersectModel(&light, &centroid, mesh);
+		//*ret = light.z;
+			}
+
 		}
     }
-*ret = 99;
+//*ret = 99;
 }
 
 
@@ -708,7 +739,7 @@ void GPU_example(CalcMesh* mesh)
 
 	{
 		printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
-		cudaToCountFirstFaces<<< 60000, prop.maxThreadsPerBlock-150>>>(light, cuda_mesh, temp);
+//		cudaToCountFirstFaces<<< 60000, prop.maxThreadsPerBlock-150>>>(light, cuda_mesh, temp);
 		
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("DEBUG: it's resulsts %f \n", temp2);
@@ -719,12 +750,30 @@ void GPU_example(CalcMesh* mesh)
 	}
 
 	cudaMemcpy(mesh->TypesOfFaces, temp_mesh.TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	
+	
+//DEBUG
+	{
+		CalcVertex point2;
+		point2.x = -34.475559;
+		point2.y = 143.815369;
+		point2.z = -271.077057;
+		if (IsSegmentIntersectPolygon(&light, &point2, &(mesh->Faces[23127]))) printf("Yes, intersection\n");
+		else printf("No intersection\n");
+	
+		//ON_ONE_SIDE(point2.x, point2.y,
+		//	 p2x, p2y,
+		//	 p1x_line, p1y_line,
+		//	 p2x_line, p2y_line);
+		//printf("%f\n", mesh->Faces[23127].VertexArray[ mesh->Faces[23127].VertexIndices[2] ].z);	
+	}
 
 	int j;
 	//from 2000 to 2200 - good faces for experiments in  ham
 	//for (j=800; j<1000; j++)		
 	//mesh->TypesOfFaces[2150] = 2;
-	
+	//mesh->TypesOfFaces[23127] = 2;
+
 /*CPU	{
 	//time = GetTickCount();
 		ToCountFirstFaces(&light, mesh);
