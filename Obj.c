@@ -24,6 +24,8 @@
 //input: {0, 1, 2, 3}
 #define CHOOSE_FACE_COLOR(Type) ((Type) ? ( (Type)==1 ? FirstVisionColor : ((Type) == 2 ? SecondVisionColor : DoubleVisionColor) ) : StandartColor)
 
+//buffer for read string
+#define BUFFER 256 
 
 
 /* All structures and comments about they you can read in the ObjStruct.h file */
@@ -87,8 +89,8 @@ ObjFile LoadOBJ(const char *filename)
 {
 	ObjMesh *pMesh=NULL;
 	unsigned int vc=0,nc=0,tc=0,fc=0,i;
-	char buffer[256];
-	FILE *fp = NULL;
+	char buffer[BUFFER], buffer2[BUFFER];
+	FILE *fp = NULL;	
 
 	/*
 	**	Open the file for reading
@@ -112,7 +114,7 @@ ObjFile LoadOBJ(const char *filename)
 	**	reading in the data. It's purely done to reduce system overhead of memory allocation due
 	**	to otherwise needing to reallocate data everytime we read in a new element.
 	*/
-	while(fgets(buffer,255,fp) != NULL)
+	while(fgets(buffer, BUFFER, fp) != NULL)
 	{	/*	Grab a line at a time	*/
 
 		/*	look for the 'vn' - vertex normal - flag	*/
@@ -150,19 +152,25 @@ ObjFile LoadOBJ(const char *filename)
 
 
 	//default types of faces: OTHER
-	pMesh->m_aTypesOfFaces = (unsigned char*) calloc(pMesh->m_iNumberOfFaces, sizeof(unsigned char));
-	for (i=0; i < pMesh->m_iNumberOfFaces; i++)
+	if ( pMesh->m_iNumberOfFaces > 0)
 	{
-		pMesh->m_aTypesOfFaces[i] = 0;
+		pMesh->m_aTypesOfFaces = (unsigned char*) calloc(pMesh->m_iNumberOfFaces, sizeof(unsigned char));
+		assert(pMesh->m_aTypesOfFaces);
+		for (i=0; i < pMesh->m_iNumberOfFaces; i++) 
+		{
+			pMesh->m_aTypesOfFaces[i] = 0;
+		}
 	}
-
 
 	/*
 	**	Allocate the memory for the data arrays and check that it allocated ok
 	*/
-
-	pMesh->m_aVertexArray	= (ObjVertex*  )malloc( pMesh->m_iNumberOfVertices	* sizeof(ObjVertex)	  );
-	assert(pMesh->m_aVertexArray);
+	
+	if ( pMesh->m_iNumberOfVertices > 0)
+	{
+		pMesh->m_aVertexArray	= (ObjVertex*  )malloc( pMesh->m_iNumberOfVertices	* sizeof(ObjVertex)	  );
+		assert(pMesh->m_aVertexArray);
+	}
 
 	/*	there are occasionally times when the obj does not have any normals in it */
 	if( pMesh->m_iNumberOfNormals > 0 )
@@ -177,17 +185,20 @@ ObjFile LoadOBJ(const char *filename)
 		pMesh->m_aTexCoordArray = (ObjTexCoord*)malloc( pMesh->m_iNumberOfTexCoords	* sizeof(ObjTexCoord) );
 		assert(pMesh->m_aTexCoordArray);
 	}
-
-	pMesh->m_aFaces			= (ObjFace*    )malloc( pMesh->m_iNumberOfFaces		* sizeof(ObjFace)	  );
-	assert(pMesh->m_aFaces);
-
+	
+	if( pMesh->m_iNumberOfFaces > 0)
+	{
+		pMesh->m_aFaces			= (ObjFace*    )malloc( pMesh->m_iNumberOfFaces		* sizeof(ObjFace)	  );
+		assert(pMesh->m_aFaces);
+	}
+	
 	/*
 	**	Now we know how much data is contained in the file and we've allocated memory to hold it all.
 	**	What we can therefore do now, is load up all of the data in the file easily.
 	*/
 	fp = fopen(filename,"r");
 	
-	while(fgets(buffer,255,fp) != NULL)
+	while(fgets(buffer, BUFFER, fp) != NULL)
 	{	/*	Grab a line at a time	*/
 
 		/*	look for the 'vn' - vertex normal - flag	*/
@@ -229,99 +240,158 @@ ObjFile LoadOBJ(const char *filename)
 			**	some data for later....
 			*/
 			char *pSplitString = NULL;
-			unsigned int i,ii = 0;
+			unsigned int i,ii = 0, iii=0;
 
 			/*
 			**	Pointer to the face we are currently dealing with. It's only used so that
 			**	the code becomes more readable and I have less to type.
 			*/
 			ObjFace *pf = &pMesh->m_aFaces[ fc ];
-
-			/*
-			**	These next few lines are used to figure out how many '/' characters there
-			**	are in the string. This gives us the information we need to find out how
-			**	many vertices are used in this face (by dividing by two)
+			
+			/*	We can have
+			**	[%d/%d/%d | %d//%d | %d/%d/ | %d/%d | %d]^n 
+			**	where n vertices in this polygon
 			*/
-			for(i=0;i<strlen(buffer);i++)
+			
+			
+			//number of '/' in one vertex (0, 1 or 2)	
+			sscanf(buffer+2,"%s",buffer2);
+			for(i=0;i<strlen(buffer2);i++)
 			{
-				if(buffer[i] == '/')
+				if(buffer2[i] == '/')
 					ii++;
 			}
-			ii/=2;
+			
+			//number of '/' in all line (0, n or 2*n)
+			for (i=0; i<strlen(buffer);i++)
+			{
+				if(buffer[i] == '/')
+					iii++;
+			}
+			
+			//number of vertices - n = iii/ii or if ii==0 then number of numbers in buffer string
+			if (ii) iii = iii/ii;
+			else
+			{	
+				i=iii=0; 
+				while (i < strlen(buffer))
+        	                {
+                	                if ((buffer[i]<'0')||(buffer[i]>'9'))
+                        	        { i++; continue;}
+                                	iii++;
+          	                      while ((buffer[i]>='0')&&(buffer[i])<='9') i++;
+                	        }
 
+
+			}
+						
 			/*
 			**	Allocate the indices for the vertices of this face
 			*/
-			pf->m_aVertexIndices	= (unsigned int*)malloc( ii * sizeof(unsigned int) );
 
-			/*
-			**	Allocate the indices for the normals of this face only if the obj file
-			**	has normals stored in it.
-			*/
-			if( pMesh->m_iNumberOfNormals > 0 )
-			{
-				pf->m_aNormalIndices	= (unsigned int*)malloc( ii * sizeof(unsigned int) );
-			}
+			pf->m_aVertexIndices	= (unsigned int*)malloc( iii * sizeof(unsigned int) );
+			assert(pf->m_aVertexIndices);
+			pf->m_iVertexCount = iii;
 
-			/*
-			**	Allocate the indices for the texturing co-ordinates of this face only if the obj file
-			**	has texturing co-ordinates stored in it.
-			*/
-			if( pMesh->m_iNumberOfTexCoords > 0 )
-			{
-				pf->m_aTexCoordIndicies = (unsigned int*)malloc( ii * sizeof(unsigned int) );
-			}
-
-			/*
-			**	tokenise the string using strtok(). Basically this splits the string up
-			**	and removes the spaces from each chunk. This way we only have to deal with
-			**	one set of indices at a time for each of the poly's vertices.
-			*/
-			pSplitString = strtok((buffer+2)," \t\n");
+			
 			i=0;
-			do
-			{
-				if( tc > 0 &&
-					nc > 0 )
-				{
-					sscanf(pSplitString, "%d/%d/%d",
-						&pf->m_aVertexIndices   [i],
-						&pf->m_aTexCoordIndicies[i],
-						&pf->m_aNormalIndices   [i] );
-
-					/* need to reduce the indices by 1 because array indices start at 0, obj starts at 1  */
-					--pf->m_aTexCoordIndicies[i];
-					--pf->m_aNormalIndices   [i];
-				}
-				else
-				if( tc > 0 )
-				{
-					sscanf(pSplitString, "%d/%d/",
-						&pf->m_aVertexIndices   [i],
-						&pf->m_aTexCoordIndicies[i] );
-
-					/* need to reduce the indices by 1 because array indices start at 0, obj starts at 1  */
-					--pf->m_aTexCoordIndicies[i];
-				}
-				else
-				if( nc > 0 )
-				{
-					sscanf(pSplitString, "%d//%d",
-						&pf->m_aVertexIndices   [i],
-						&pf->m_aNormalIndices   [i] );
-
-					/* need to reduce the indices by 1 because array indices start at 0, obj starts at 1  */
-					--pf->m_aNormalIndices   [i];
-				}
-
-				/* need to reduce the indices by 1 because array indices start at 0, obj starts at 1  */
-				--pf->m_aVertexIndices[i];
-
-				++i;
-				pSplitString = strtok(NULL," \t\n");
+			if (ii==0) // this way: v
+			{	
+				pf->m_aTexCoordIndicies = NULL;
+				pf->m_aNormalIndices = NULL;
+                                pSplitString = strtok((buffer+2)," \t\n");
+                                do {
+                                        sscanf(pSplitString, "%d",
+                                        &pf->m_aVertexIndices[i] );
+                                        /* need to reduce the indices by 1 because array indices start at 0, obj starts at 1  */
+                                        --pf->m_aVertexIndices[i];
+                                        i++;
+                                }
+                                while (pSplitString = strtok(NULL," \t\n"));
+  
 			}
-			while( pSplitString );
-			pf->m_iVertexCount = i;
+			else if (ii==1) // this way: v/vt 	
+			{
+				pf->m_aTexCoordIndicies = (unsigned int*)malloc( iii * sizeof(unsigned int) );
+			 	assert( pf->m_aTexCoordIndicies );
+				pf->m_aNormalIndices = NULL;
+				//for(i=0; i<iii; i++) 
+                         	pSplitString = strtok((buffer+2)," \t\n");
+                        	do {
+               		          	sscanf(pSplitString, "%d/%d",
+					&pf->m_aVertexIndices   [i],
+                                	&pf->m_aTexCoordIndicies[i] );
+                      		        /* need to reduce the indices by 1 because array indices start at 0, obj starts at 1  */
+					--pf->m_aTexCoordIndicies[i];
+					--pf->m_aVertexIndices[i];
+					i++;
+				}
+				while (pSplitString = strtok(NULL," \t\n"));
+			}
+			else if ( ii == 2 )
+			{
+				if ( buffer2[strlen(buffer2)-1] == '/' )    //this way: v/vt/
+					{
+						pf->m_aTexCoordIndicies = (unsigned int*)malloc( iii * sizeof(unsigned int) );
+						assert( pf->m_aTexCoordIndicies );
+						pf->m_aNormalIndices = NULL;
+						//for(i=0; i<iii; i++) 
+						pSplitString = strtok((buffer+2)," \t\n");
+						do {
+							sscanf(pSplitString, "%d/%d/",
+	                                                &pf->m_aVertexIndices   [i],
+        	                                        &pf->m_aTexCoordIndicies[i] );
+                	                              /* need to reduce the indices by 1 because array indices start at 0, obj starts at 1  */
+                        	                        --pf->m_aTexCoordIndicies[i];
+							--pf->m_aVertexIndices[i];
+							i++;
+						}
+						while (pSplitString = strtok(NULL," \t\n"));
+
+					}
+				else if ( strstr(buffer2, "//") )    //this way: v//vn
+				{
+					pf->m_aNormalIndices    = (unsigned int*)malloc( iii * sizeof(unsigned int) );
+					assert( pf->m_aNormalIndices );
+					pf->m_aTexCoordIndicies = NULL;
+                                        //for(i=0; i<iii; i++) 
+                                        pSplitString = strtok((buffer+2)," \t\n");
+                                        do {
+                                                sscanf(pSplitString, "%d//%d",
+                                                &pf->m_aVertexIndices   [i],
+                                                &pf->m_aNormalIndices   [i] );
+                                                /* need to reduce the indices by 1 because array indices start at 0, obj starts at 1  */
+                                                --pf->m_aVertexIndices[i];
+                                                --pf->m_aNormalIndices[i];
+                                                i++;
+                                        }
+                                        while (pSplitString = strtok(NULL," \t\n"));
+					
+				}
+				else	//this way: v/vt/vn
+				{
+					pf->m_aTexCoordIndicies = (unsigned int*)malloc( iii * sizeof(unsigned int) );
+					assert( pf->m_aTexCoordIndicies );
+					pf->m_aNormalIndices    = (unsigned int*)malloc( iii * sizeof(unsigned int) );
+					assert( pf->m_aNormalIndices );
+					
+				        //for(i=0; i<iii; i++) 
+                                        pSplitString = strtok((buffer+2)," \t\n");
+                                        do {
+                                        	sscanf(pSplitString, "%d/%d/%d",
+                                                &pf->m_aVertexIndices   [i],
+                                                &pf->m_aTexCoordIndicies[i],
+						&pf->m_aNormalIndices   [i] );
+                                                /* need to reduce the indices by 1 because array indices start at 0, obj starts at 1  */
+                                                --pf->m_aTexCoordIndicies[i];
+                                                --pf->m_aVertexIndices[i];
+						--pf->m_aNormalIndices[i];
+                                                i++;
+                                        }
+                                        while (pSplitString = strtok(NULL," \t\n"));
+					
+				}
+			}
 			++fc;
 		}
 	}
@@ -372,9 +442,9 @@ void DrawOBJ(ObjFile id)
 		/*
 		**	Check for the existance of uv coords and normals
 		*/
-		if( pMesh->m_aNormalArray   != NULL &&
-			pMesh->m_aTexCoordArray != NULL )
-		{
+		//if( pMesh->m_aNormalArray   != NULL &&
+		//	pMesh->m_aTexCoordArray != NULL )
+		//{
 			unsigned int i;
 			for(i=0;i<pMesh->m_iNumberOfFaces;i++)
 			{
@@ -389,13 +459,16 @@ void DrawOBJ(ObjFile id)
 				glColor3fv(  CHOOSE_FACE_COLOR(pMesh->m_aTypesOfFaces[i])  );
 				glBegin(GL_POLYGON);
 				for(j=0;j<pf->m_iVertexCount;j++)
-				{
-					glTexCoord2f( pMesh->m_aTexCoordArray[ pf->m_aTexCoordIndicies[j] ].u,
+				{	
+					if ((pMesh->m_aTexCoordArray) && (pf->m_aTexCoordIndicies))
+						glTexCoord2f( pMesh->m_aTexCoordArray[ pf->m_aTexCoordIndicies[j] ].u,
 								  pMesh->m_aTexCoordArray[ pf->m_aTexCoordIndicies[j] ].v);
-					glNormal3f( pMesh->m_aNormalArray[ pf->m_aNormalIndices[j] ].x,
+					if ((pMesh->m_aNormalArray) && (pf->m_aNormalIndices))
+						glNormal3f( pMesh->m_aNormalArray[ pf->m_aNormalIndices[j] ].x,
 								pMesh->m_aNormalArray[ pf->m_aNormalIndices[j] ].y,
 								pMesh->m_aNormalArray[ pf->m_aNormalIndices[j] ].z);
-					glVertex3f( pMesh->m_aVertexArray[ pf->m_aVertexIndices[j] ].x,
+					if ((pMesh->m_aVertexArray) && (pf->m_aVertexIndices))
+						glVertex3f( pMesh->m_aVertexArray[ pf->m_aVertexIndices[j] ].x,
 								pMesh->m_aVertexArray[ pf->m_aVertexIndices[j] ].y,
 								pMesh->m_aVertexArray[ pf->m_aVertexIndices[j] ].z);
 				}
@@ -403,13 +476,13 @@ void DrawOBJ(ObjFile id)
 				glColor3fv(StandartColor);
 
 			}
-		}
+	/*	}
 		else
 
-		/*
+	*/	/*
 		**	See if just the normals exist
 		*/
-		if( pMesh->m_aNormalArray   != NULL )
+/*		if( pMesh->m_aNormalArray   != NULL )
 		{
 			unsigned int i;
 			for(i=0;i<pMesh->m_iNumberOfFaces;i++)
@@ -417,10 +490,10 @@ void DrawOBJ(ObjFile id)
 				unsigned int j;
 				ObjFace *pf = &pMesh->m_aFaces[i];
 
-				/*
+*/				/*
 				**	Draw the polygons with Normals only
 				*/
-				glColor3fv(  CHOOSE_FACE_COLOR(pMesh->m_aTypesOfFaces[i])  );
+/*				glColor3fv(  CHOOSE_FACE_COLOR(pMesh->m_aTypesOfFaces[i])  );
 				glBegin(GL_POLYGON);
 				for(j=0;j<pf->m_iVertexCount;j++)
 				{
@@ -439,21 +512,26 @@ void DrawOBJ(ObjFile id)
 		}
 		else
 
-		/*
+*/		/*
 		**	Do we have any uv-coords
 		*/
-		if( pMesh->m_aTexCoordArray != NULL )
+/*		if( pMesh->m_aTexCoordArray != NULL )
 		{
 			unsigned int i;
 			for(i=0;i<pMesh->m_iNumberOfFaces;i++)
+			//for (i=0; i<93295; i++)
+			//i = 93296;
 			{
+			//if ((i>=90000)&&(i<=100000)) continue;
+			//printf("%i\n",i);
+			
 				unsigned int j;
 				ObjFace *pf = &pMesh->m_aFaces[i];
 
-				/*
+*/				/*
 				**	Draw the polygons with Texturing co-ordinates only
 				*/
-				glColor3fv( CHOOSE_FACE_COLOR(pMesh->m_aTypesOfFaces[i]) );
+/*				glColor3fv( CHOOSE_FACE_COLOR(pMesh->m_aTypesOfFaces[i]) );
 				glBegin(GL_POLYGON);
 				for(j=0;j<pf->m_iVertexCount;j++)
 				{
@@ -467,7 +545,7 @@ void DrawOBJ(ObjFile id)
 				glColor3fv(StandartColor);
 
 			}
-		}
+		}*/
 	}
 }
 

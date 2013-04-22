@@ -493,14 +493,14 @@ void cudaToCountFirstFaces(CalcVertex light, CalcMesh* mesh, float* ret)
 				
 
 //2150 for eleham.obj		
-	if (i==2150) 	{
-		*ret = IsSegmentIntersectModel(&light, &centroid, mesh);
+//	if (i==2150) 	{
+//		*ret = IsSegmentIntersectModel(&light, &centroid, mesh);
 		//*ret = light.z;
-			}
+//			}
 
 		}
     }
-//*ret = 99;
+*ret = 99;
 }
 
 
@@ -739,7 +739,7 @@ void GPU_example(CalcMesh* mesh)
 
 	{
 		printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
-//		cudaToCountFirstFaces<<< 60000, prop.maxThreadsPerBlock-150>>>(light, cuda_mesh, temp);
+		cudaToCountFirstFaces<<< 60000, prop.maxThreadsPerBlock-150>>>(light, cuda_mesh, temp);
 		
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("DEBUG: it's resulsts %f \n", temp2);
@@ -754,13 +754,13 @@ void GPU_example(CalcMesh* mesh)
 	
 //DEBUG
 	{
-		CalcVertex point2;
-		point2.x = -34.475559;
+/*		CalcVertex point2;
+BUG Ham		point2.x = -34.475559;
 		point2.y = 143.815369;
 		point2.z = -271.077057;
 		if (IsSegmentIntersectPolygon(&light, &point2, &(mesh->Faces[23127]))) printf("Yes, intersection\n");
 		else printf("No intersection\n");
-	
+*/	
 		//ON_ONE_SIDE(point2.x, point2.y,
 		//	 p2x, p2y,
 		//	 p1x_line, p1y_line,

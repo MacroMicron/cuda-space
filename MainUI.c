@@ -133,7 +133,8 @@ void TEMP_CHECK_FUNCTION() {
 
 	light.x = 100.0f;
 	light.y = light.z = 50.0f;
-
+	
+	TryOne = 1;
 	if (!TryOne) {
 		mesh = CreateCalcMesh(ReturnObjMesh(object));
 		printf("DEBUG CreatedCalcMesh\n");
