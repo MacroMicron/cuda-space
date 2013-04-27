@@ -116,26 +116,17 @@ void InitSettings() {
 CalcVertex LinePoint1, LinePoint2;
 CalcMesh *mesh;
 CalcVertex light;
+ObjVertex oLight;
 Bool TryOne = 0;
 int iter, it;
 double eps, tempo, EPS = 0;
 
 //debug function. delete after
-void TEMP_CHECK_FUNCTION() {
+void FirstInit() {
 	int time;
 
-	LinePoint1.x = 1.0;
-	LinePoint1.y = 1.0;
-	LinePoint1.z = 1.0;
-
-	LinePoint2.x = 56.834533691406250;
-	LinePoint2.y = 439.94609578450519;
-	LinePoint2.z = 445.43953450520831;
-
-	light.x = 100.0f;
-	light.y = light.z = 50.0f;
-	
 	if (!TryOne) {
+		AddLight(oLight, object);
 		mesh = CreateCalcMesh(ReturnObjMesh(object));
 		printf("DEBUG CreatedCalcMesh\n");
 
@@ -168,32 +159,6 @@ void TEMP_CHECK_FUNCTION() {
 		 printf("main eps: %f", EPS);*/
 		//printf("seconds: %i\n", time);
 	}
-
-	//mesh = CreateCalcMesh(ReturnObjMesh(object));
-	//printf("Segment [(%f, %f, %f) ; (%f, %f, %f)] intersect mesh in %d points\n",
-	//	LinePoint1.x, LinePoint1.y, LinePoint1.z,
-	//	LinePoint2.x, LinePoint2.y, LinePoint2.z,
-	//	IsSegmentIntersectModel(&LinePoint1, &LinePoint2, mesh));
-	//
-	//glBegin(GL_LINES);
-	//glVertex3f(LinePoint1.x, LinePoint1.y, LinePoint1.z);
-	//glVertex3f(LinePoint2.x, LinePoint2.y, LinePoint2.z);
-
-	//glEnd();
-
-	glBegin(GL_LINES);
-	glVertex3f(light.x, light.y, light.z);
-	glVertex3f(light.x + 10, light.y + 10, light.z + 10);
-	glVertex3f(light.x, light.y, light.z);
-	glVertex3f(light.x - 10, light.y - 10, light.z - 10);
-	glVertex3f(light.x, light.y, light.z);
-	glVertex3f(light.x + 10, light.y + 10, light.z - 10);
-	glVertex3f(light.x, light.y, light.z);
-	glVertex3f(light.x + 10, light.y - 10, light.z + 10);
-	glVertex3f(light.x, light.y, light.z);
-	glVertex3f(light.x - 10, light.y + 10, light.z + 10);
-	glEnd();
-
 }
 
 //	GLUT display callback function
@@ -213,10 +178,15 @@ void Display() {
 	//glTranslatef(camera.Position[0],camera.Position[1],camera.Position[2]);
 	//glLightfv(GL_LIGHT0,GL_POSITION,camera.Position);
 
-	glPushMatrix();
-	TEMP_CHECK_FUNCTION();
+	
+    
+        oLight.x = light.x = 100.0f;
+        oLight.y = oLight.z = light.y = light.z = 50.0f;
+
+	FirstInit();
+	
 	DrawOBJ(object);
-	glPopMatrix();
+	DrawLights(object);	
 
 	//if (obj!=NULL)
 	//if (obj->TypesOfFaces != NULL)

@@ -43,6 +43,11 @@ ObjMesh *g_LinkedListHead = NULL;
 unsigned int g_ObjIdGenerator = 0;
 
 
+//in this implementation only one light
+//TODO support many lights
+GLUquadricObj *GlobalLight = NULL;
+
+
 /*
 **	This function is only called from within the *.c file and is used to create an ObjMesh structure and
 **	initialise its values (adds the mesh to the linked list also).
@@ -73,7 +78,7 @@ ObjMesh *MakeOBJ()
 	pMesh->m_iNumberOfVertices	= 0;
 	pMesh->m_iMeshID			= ++g_ObjIdGenerator;
 	pMesh->m_aTypesOfFaces		= NULL;
-
+	pMesh->m_aLights		= NULL;
 
 	/*
 	**	Insert the mesh at the beginning of the linked list
@@ -463,7 +468,15 @@ void SaveOBJ(const ObjFile id, const char *filename)
 			} 
 			fprintf(fp, "\n");
 		}
-		
+  	        
+		//different types of faces vision
+                //enum type needed! TODO
+                //for (i=0; i<4; i++)
+                //{
+			
+			
+                //}
+	
 		
 		
 	}	
@@ -507,15 +520,10 @@ void DrawOBJ(const ObjFile id)
 		**		}
 		**	}
 		*/
+			glPushMatrix();
 
-		/*
-		**	Check for the existance of uv coords and normals
-		*/
-		//if( pMesh->m_aNormalArray   != NULL &&
-		//	pMesh->m_aTexCoordArray != NULL )
-		//{
 			unsigned int i;
-			for(i=0;i<pMesh->m_iNumberOfFaces;i++)
+			for(i=0; i < pMesh->m_iNumberOfFaces; i++)
 			{
 				unsigned int j;
 				ObjFace *pf = &pMesh->m_aFaces[i];
@@ -545,77 +553,104 @@ void DrawOBJ(const ObjFile id)
 				glColor3fv(StandartColor);
 
 			}
-	/*	}
-		else
 
-	*/	/*
-		**	See if just the normals exist
-		*/
-/*		if( pMesh->m_aNormalArray   != NULL )
-		{
-			unsigned int i;
-			for(i=0;i<pMesh->m_iNumberOfFaces;i++)
-			{
-				unsigned int j;
-				ObjFace *pf = &pMesh->m_aFaces[i];
-
-*/				/*
-				**	Draw the polygons with Normals only
-				*/
-/*				glColor3fv(  CHOOSE_FACE_COLOR(pMesh->m_aTypesOfFaces[i])  );
-				glBegin(GL_POLYGON);
-				for(j=0;j<pf->m_iVertexCount;j++)
-				{
-					glNormal3f( pMesh->m_aNormalArray[ pf->m_aNormalIndices[j] ].x,
-								pMesh->m_aNormalArray[ pf->m_aNormalIndices[j] ].y,
-								pMesh->m_aNormalArray[ pf->m_aNormalIndices[j] ].z);
-					glVertex3f( pMesh->m_aVertexArray[ pf->m_aVertexIndices[j] ].x,
-								pMesh->m_aVertexArray[ pf->m_aVertexIndices[j] ].y,
-								pMesh->m_aVertexArray[ pf->m_aVertexIndices[j] ].z);
-				}
-				glEnd();
-				glColor3fv(StandartColor);
-
-
-			}
-		}
-		else
-
-*/		/*
-		**	Do we have any uv-coords
-		*/
-/*		if( pMesh->m_aTexCoordArray != NULL )
-		{
-			unsigned int i;
-			for(i=0;i<pMesh->m_iNumberOfFaces;i++)
-			//for (i=0; i<93295; i++)
-			//i = 93296;
-			{
-			//if ((i>=90000)&&(i<=100000)) continue;
-			//printf("%i\n",i);
-			
-				unsigned int j;
-				ObjFace *pf = &pMesh->m_aFaces[i];
-
-*/				/*
-				**	Draw the polygons with Texturing co-ordinates only
-				*/
-/*				glColor3fv( CHOOSE_FACE_COLOR(pMesh->m_aTypesOfFaces[i]) );
-				glBegin(GL_POLYGON);
-				for(j=0;j<pf->m_iVertexCount;j++)
-				{
-					glTexCoord2f( pMesh->m_aTexCoordArray[ pf->m_aTexCoordIndicies[j] ].u,
-								  pMesh->m_aTexCoordArray[ pf->m_aTexCoordIndicies[j] ].v);
-					glVertex3f( pMesh->m_aVertexArray[ pf->m_aVertexIndices[j] ].x,
-								pMesh->m_aVertexArray[ pf->m_aVertexIndices[j] ].y,
-								pMesh->m_aVertexArray[ pf->m_aVertexIndices[j] ].z);
-				}
-				glEnd();
-				glColor3fv(StandartColor);
-
-			}
-		}*/
+			glPopMatrix();			
 	}
+}
+
+/*
+** Add Lights (only 1 light in this program implementation)
+*/
+void AddLight(ObjVertex vertex, ObjFile id)
+{
+        /*
+        **      Because the meshes are on a linked list, we first need to find the
+        **      mesh with the specified ID number so traverse the list.
+        */
+        ObjMesh *pMesh = g_LinkedListHead;
+
+        while(pMesh && pMesh->m_iMeshID != id)
+        {
+                pMesh = pMesh->m_pNext;
+        }
+
+        /*
+        **      Check to see if the mesh ID is valid.
+        */
+        if (pMesh != NULL)
+        {
+		if (pMesh->m_aLights == NULL)
+		{
+			pMesh->m_aLights = (ObjVertex*) malloc(sizeof(ObjVertex));
+			assert(pMesh->m_aLights);
+		}
+		pMesh->m_aLights[0].x = vertex.x;
+		pMesh->m_aLights[0].y = vertex.y;
+		pMesh->m_aLights[0].z = vertex.z;
+	}	
+}
+
+
+/*
+** Draw Lights (only 1 light in this program implementation
+*/
+void DrawLights(const ObjFile id)
+{
+        float LightColor[3] = {1.0f, 1.0f, 0.0f};
+
+        /*
+        **      Because the meshes are on a linked list, we first need to find the
+        **      mesh with the specified ID number so traverse the list.
+        */
+        ObjMesh *pMesh = g_LinkedListHead;
+
+        while(pMesh && pMesh->m_iMeshID != id)
+        {
+                pMesh = pMesh->m_pNext;
+        }
+
+        /*
+        **      Check to see if the mesh ID is valid.
+        */
+        if(pMesh != NULL)
+        {
+		if (pMesh->m_aLights)
+		{
+
+			glPushMatrix();	
+			glTranslated(pMesh->m_aLights[0].x, pMesh->m_aLights[0].y, pMesh->m_aLights[0].z);
+  			GlobalLight = gluNewQuadric();
+  			assert(GlobalLight);
+			gluQuadricDrawStyle(GlobalLight, GLU_FILL);
+  			glColor3fv(LightColor);
+  			gluSphere(GlobalLight, 20,10,10);
+			glPopMatrix();
+		}
+	}
+}
+
+
+/*
+** Remove Light (only 1 light can remove in this program implementation)
+*/
+void RemoveLight(ObjFile id)
+{
+        ObjMesh *pMesh = g_LinkedListHead;
+
+        while(pMesh && pMesh->m_iMeshID != id)
+        {
+                pMesh = pMesh->m_pNext;
+        }
+
+        if (pMesh != NULL)
+        {
+                if (pMesh->m_aLights != NULL)
+                {        
+  			gluDeleteQuadric(GlobalLight);
+			GlobalLight = NULL;
+			free(pMesh->m_aLights);
+                }
+        }		
 }
 
 
@@ -686,11 +721,13 @@ void DeleteMesh(ObjMesh* pMesh)
 			free(pMesh->m_aTypesOfFaces);
 			pMesh->m_aTypesOfFaces = NULL;
 		}
-
-		//delete type of faces
-		free(pMesh->m_aTypesOfFaces);
-
-		/*	free the mesh */
+		
+		if (pMesh->m_aLights)
+		{
+			free(pMesh->m_aLights);
+			pMesh->m_aLights = NULL;
+		}
+			
 		free( pMesh );
 	}
 }
