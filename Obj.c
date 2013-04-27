@@ -401,8 +401,77 @@ ObjFile LoadOBJ(const char *filename)
 	return pMesh->m_iMeshID;
 }
 
+//Save OBJ file with all informatin about faces: first or second type. In comments: #
+void SaveOBJ(const ObjFile id, const char *filename)
+{
+	FILE *fp = NULL;
+	fp = fopen(filename, "w");
+	assert(fp);
+	
+        ObjMesh *pMesh = g_LinkedListHead;
+        while(pMesh && pMesh->m_iMeshID != id)
+        {
+                pMesh = pMesh->m_pNext;
+        }
 
-void DrawOBJ(ObjFile id)
+	if (pMesh != NULL)
+	{
+		unsigned int i, j;
+		ObjFace *pf;
+		for (i=0; i < pMesh->m_iNumberOfVertices;i++)
+		{
+			fprintf(fp, "v %f %f %f\n", pMesh->m_aVertexArray[i].x, pMesh->m_aVertexArray[i].y, pMesh->m_aVertexArray[i].z);
+		}
+		for (i=0; i < pMesh->m_iNumberOfTexCoords; i++)
+		{
+			fprintf(fp, "vt %f %f\n", pMesh->m_aTexCoordArray[i].u, pMesh->m_aTexCoordArray[i].v);
+		}
+		for (i=0; i < pMesh->m_iNumberOfNormals; i++)
+		{
+			fprintf(fp, "vn %f %f %f\n", pMesh->m_aNormalArray[i].x, pMesh->m_aNormalArray[i].y, pMesh->m_aNormalArray[i].z);
+		}
+		for (i=0, pf=pMesh->m_aFaces; i < pMesh->m_iNumberOfFaces; i++, pf=&pMesh->m_aFaces[i])
+		{
+			fprintf(fp,"f");
+			if (( pf->m_aTexCoordIndicies != NULL )&&( pf->m_aNormalIndices != NULL))
+			{	
+				for (j=0; j < pf->m_iVertexCount; j++)
+				{
+					fprintf(fp, " %d/%d/%d", ++pf->m_aVertexIndices[j], ++pf->m_aTexCoordIndicies[j], ++pf->m_aNormalIndices[j]);
+				}
+			}
+			else if (( pf->m_aTexCoordIndicies != NULL )&&( pf->m_aNormalIndices == NULL))
+			{
+				for (j=0; j < pf->m_iVertexCount; j++)
+                                {
+                                        fprintf(fp, " %d/%d", ++pf->m_aVertexIndices[j], ++pf->m_aTexCoordIndicies[j]);
+                                }
+			}
+			else if (( pf->m_aTexCoordIndicies == NULL )&&( pf->m_aNormalIndices != NULL))
+			{
+				for (j=0; j < pf->m_iVertexCount; j++)
+                                {
+                                        fprintf(fp, " %d//%d", ++pf->m_aVertexIndices[j], ++pf->m_aNormalIndices[j]);
+                                }
+			}
+			else if (( pf->m_aTexCoordIndicies == NULL )&&( pf->m_aNormalIndices == NULL))
+                        {
+                                for (j=0; j < pf->m_iVertexCount; j++)
+                                {
+                                        fprintf(fp, " %d", ++pf->m_aVertexIndices[j]);
+                                }
+			} 
+			fprintf(fp, "\n");
+		}
+		
+		
+		
+	}	
+	
+	fclose(fp);
+}
+
+void DrawOBJ(const ObjFile id)
 {
 	float StandartColor[3] = {0.5f, 0.5f, 0.5f},
 		FirstVisionColor[3] = {0.5f, 0.0f, 0.0f},

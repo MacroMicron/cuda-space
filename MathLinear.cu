@@ -500,7 +500,8 @@ void cudaToCountFirstFaces(CalcVertex light, CalcMesh* mesh, float* ret)
 
 		}
     }
-*ret = 99;
+if (i==0) *ret = 99;
+//__syncthreads();
 }
 
 
@@ -662,9 +663,6 @@ __global__ void GPU_tester(CalcMesh* cuda_mesh, float* ret, CalcVertex *light)
 
 void GPU_example(CalcMesh* mesh)
 {
-	//only for 3-polygons (because look at CalcFace struct, if we have dynamic pointer VertexIndices, time to create so loong
-
-
 	//create cudaCalcMesh on GPU
 	//i don't know how to use malloc on the gpu, i think that i don't have it on my capability 1.2
 
@@ -740,10 +738,14 @@ void GPU_example(CalcMesh* mesh)
 	{
 		printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
 		cudaToCountFirstFaces<<< 60000, prop.maxThreadsPerBlock-150>>>(light, cuda_mesh, temp);
+		//for (integer face = 0; face < 1000; face++){
+		//cudaToCountFirstFaces<<< 1, 1>>>(face, light, cuda_mesh, temp);
 		
+		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
+				
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("DEBUG: it's resulsts %f \n", temp2);
-
+		//}
 //DEBUG		cudaToCountSecondAndDoubleFaces<<< 50000, prop.maxThreadsPerBlock-150>>>(cuda_mesh, temp);
 //DEBUG		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 //DEBUG		printf("GPU test 2:%f \n", temp2);

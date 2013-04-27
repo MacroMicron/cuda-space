@@ -31,7 +31,12 @@ extern "C" {
 	**				to reference it.
 	*/
 	ObjFile LoadOBJ(const char *filename);
-
+	
+	/*	notes	:	Save OBJ to file *.obj with inforamtion about first and second faces in
+	**			comments. 
+	*/
+	void SaveOBJ(const ObjFile id, const char *filename);
+	
 	/*
 	**	func	:	DrawOBJ
 	**	params	:	id	-	a reference ID to the mesh you wish to draw

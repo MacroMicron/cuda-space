@@ -23,6 +23,7 @@
 //const promt
 const char* instructionList = "\nInstructions:\n"
 		"	L - load *.obj file\n"
+		"	V - save *.obj file\n"
 		"	A - left\n"
 		"	D - right\n"
 		"	S - back\n"
@@ -134,7 +135,6 @@ void TEMP_CHECK_FUNCTION() {
 	light.x = 100.0f;
 	light.y = light.z = 50.0f;
 	
-	TryOne = 1;
 	if (!TryOne) {
 		mesh = CreateCalcMesh(ReturnObjMesh(object));
 		printf("DEBUG CreatedCalcMesh\n");
@@ -342,8 +342,14 @@ void Keyboard(unsigned char Key, int x, int y) {
 		printf("Camera position: (%f, %f, %f)\n", camera.Position[0],
 				camera.Position[1], camera.Position[2]);
 
-	//just temp
-	if (Key == 'u' || Key == 'U') {
+	if (Key == 'v' || Key == 'V') {
+		char filename[256];
+
+                printf("Enter path to the new file:\n");
+                scanf("%s", filename);
+		printf("Saving file... Please Wait...\n");
+                SaveOBJ(object, filename);
+                printf("File saved.\n");
 
 	}
 
