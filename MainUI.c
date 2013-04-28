@@ -130,12 +130,14 @@ void FirstInit() {
 	int time;
 
 	if (!TryOne) {
-	        oLight.x = light.x = 100.0f;
-	        oLight.y = oLight.z = light.y = light.z = 50.0f;
-		AddLight(oLight, object);
+	        //oLight.x = light.x = 100.0f;
+	        //oLight.y = oLight.z = light.y = light.z = 50.0f;
+		//AddLight(oLight, object);
 		
-		Keyboard('C', 0,0);
-	/*	mesh = CreateCalcMesh(ReturnObjMesh(object));
+		//Keyboard('C', 0,0);
+	
+
+/*	mesh = CreateCalcMesh(ReturnObjMesh(object));
 		printf("DEBUG CreatedCalcMesh\n");
 
 		GPU_example(mesh);
@@ -312,7 +314,7 @@ void Keyboard(unsigned char Key, int x, int y) {
 	if (Key == 'h' || Key == 'i' || Key == 'H' || Key == 'I')
 		printf(instructionList);
 
-	if (Key == 'c' || Key == 'C')
+	if (Key == 'z' || Key == 'Z')
 		printf("Camera position: (%f, %f, %f)\n", camera.Position[0],
 				camera.Position[1], camera.Position[2]);
 

@@ -148,7 +148,6 @@ ObjFile LoadOBJ(const char *filename)
 		{
 			++pMesh->m_iNumberOfFaces;
 		}
-		
 	}
 
 	/*
@@ -157,7 +156,7 @@ ObjFile LoadOBJ(const char *filename)
 	fclose(fp);
 
 
-	//default types of faces: OTHER
+	//default types of faces: UNDEFINED
 	if ( pMesh->m_iNumberOfFaces > 0)
 	{
 		pMesh->m_aTypesOfFaces = (unsigned char*) calloc(pMesh->m_iNumberOfFaces, sizeof(unsigned char));
@@ -400,6 +399,49 @@ ObjFile LoadOBJ(const char *filename)
 			}
 			++fc;
 		}
+
+		//special cuda-space comments
+		//for light, only 1 (first) in this program implementation	
+		//#spacelight vx vy vz
+		if( strncmp("#spacelight ",buffer,12) == 0)
+		{
+			if (!pMesh->m_aLights)
+			{
+				pMesh->m_aLights = (ObjVertex*) malloc(sizeof(ObjVertex));
+				assert(pMesh->m_aLights);
+				sscanf(buffer+11,"%f%f%f",
+                                                        &pMesh->m_aLights[ 0 ].x,
+                                                        &pMesh->m_aLights[ 0 ].y,
+                                                        &pMesh->m_aLights[ 0 ].z);
+				if (GlobalLight == NULL)
+		                {
+                	        	GlobalLight = gluNewQuadric();
+                        		assert(GlobalLight);
+                		}
+
+			}
+		}
+
+		//special cuda-space comments
+		//for only one light - only one array of face types
+		//#spacetypes fn t
+		if( strncmp("#spacetypes ",buffer,12) == 0)
+		{
+			unsigned int i, t;
+			char *pSplitString = strtok((buffer+11)," \t\n");
+			sscanf(pSplitString, "%d", &i);
+			i--; // need to reduce the indices by 1 because array indices start at 0, obj starts at 1 
+			if ((i>=0) && (i<pMesh->m_iNumberOfFaces))
+			{
+				
+				pSplitString = strtok(NULL," \t\n");
+				sscanf(pSplitString, "%d", &t);
+				if ((t>=0) && (t<=4))
+				{
+					pMesh->m_aTypesOfFaces[i] = t;
+				}
+                        }
+		}
 	}
 
 	fclose(fp);
@@ -443,43 +485,40 @@ void SaveOBJ(const ObjFile id, const char *filename)
 			{	
 				for (j=0; j < pf->m_iVertexCount; j++)
 				{
-					fprintf(fp, " %d/%d/%d", ++pf->m_aVertexIndices[j], ++pf->m_aTexCoordIndicies[j], ++pf->m_aNormalIndices[j]);
+					fprintf(fp, " %d/%d/%d", pf->m_aVertexIndices[j]+1, pf->m_aTexCoordIndicies[j]+1, pf->m_aNormalIndices[j]+1);
 				}
 			}
 			else if (( pf->m_aTexCoordIndicies != NULL )&&( pf->m_aNormalIndices == NULL))
 			{
 				for (j=0; j < pf->m_iVertexCount; j++)
                                 {
-                                        fprintf(fp, " %d/%d", ++pf->m_aVertexIndices[j], ++pf->m_aTexCoordIndicies[j]);
+                                        fprintf(fp, " %d/%d", pf->m_aVertexIndices[j]+1, pf->m_aTexCoordIndicies[j]+1);
                                 }
 			}
 			else if (( pf->m_aTexCoordIndicies == NULL )&&( pf->m_aNormalIndices != NULL))
 			{
 				for (j=0; j < pf->m_iVertexCount; j++)
                                 {
-                                        fprintf(fp, " %d//%d", ++pf->m_aVertexIndices[j], ++pf->m_aNormalIndices[j]);
+                                        fprintf(fp, " %d//%d", pf->m_aVertexIndices[j]+1, pf->m_aNormalIndices[j]+1);
                                 }
 			}
 			else if (( pf->m_aTexCoordIndicies == NULL )&&( pf->m_aNormalIndices == NULL))
                         {
                                 for (j=0; j < pf->m_iVertexCount; j++)
                                 {
-                                        fprintf(fp, " %d", ++pf->m_aVertexIndices[j]);
+                                        fprintf(fp, " %d", pf->m_aVertexIndices[j]+1);
                                 }
 			} 
 			fprintf(fp, "\n");
 		}
-  	        
-		//different types of faces vision
-                //enum type needed! TODO
-                //for (i=0; i<4; i++)
-                //{
-			
-			
-                //}
-	
-		
-		
+		if (pMesh->m_aLights)
+		{
+			fprintf(fp, "#spacelight %f %f %f\n", pMesh->m_aLights[0].x, pMesh->m_aLights[0].y, pMesh->m_aLights[0].z);
+		}
+  	        for (i=0; i < pMesh->m_iNumberOfFaces; i++)
+		{ 
+			fprintf(fp, "#spacetypes %d %d\n",i+1, pMesh->m_aTypesOfFaces[i]);	
+		}
 	}	
 	
 	fclose(fp);

@@ -609,7 +609,7 @@ void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret)
 								mesh->TypesOfFaces[j] = DOUBLE_VISION;
 							else mesh->TypesOfFaces[j] = SECOND_VISION;
 
-		//*ret = 99;			}
+					}
 		}
 
 		//else if non-triangle ...
