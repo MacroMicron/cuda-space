@@ -35,8 +35,9 @@ const char* instructionList = "\nInstructions:\n"
 		"	'-' - decrement moving step\n"
 		"	H or I - show instruction list\n"
 		"	X - exit from program\n"
-		"	'[' - add light\n" //only 1 light in this implementation
+		"	'[' - add light\n" 			//only 1 light in this implementation
 		"	']' - remove light\n"
+		"	N - move to the next light\n" 		//only 1 light not Previous light command
 		"\n";
 
 //just a bug hack
@@ -336,7 +337,22 @@ void Keyboard(unsigned char Key, int x, int y) {
 		RemoveLight(object);
 		printf("Light removed.\n");
 	}	
-
+	
+	if (Key == 'N' || Key == 'n') {
+		ObjVertex *light = GetLights(object);
+		if (light)
+		{
+			camera.Position[0] = light->x;
+			camera.Position[1] = light->y;
+			camera.Position[2] = light->z;
+			printf("Moved to the light (%f, %f, %f)\n", light->x, light->y, light->z);
+		}
+		else
+		{
+			printf("No lights.\n");
+		}
+	}
+	
 	glutPostRedisplay();
 }
 

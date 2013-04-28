@@ -662,6 +662,29 @@ void RemoveLight(ObjFile id)
 
 
 /*
+**	only one light in this program implementation
+*/
+ObjVertex* GetLights(ObjFile id)
+{
+        ObjMesh *pMesh = g_LinkedListHead;
+
+        while(pMesh && pMesh->m_iMeshID != id)
+        {
+                pMesh = pMesh->m_pNext;
+        }
+
+        if (pMesh != NULL)
+        {
+                if (pMesh->m_aLights != NULL)
+                {
+			return pMesh->m_aLights;
+  		}
+	}
+	return NULL;
+}
+
+
+/*
 **	Calling free() on NULL is VERY BAD in C, so make sure we
 **	check all pointers before calling free.
 */

@@ -28,7 +28,7 @@ extern "C" {
 
 	//if the mouse was moved: deltaX>0 => lookAtDown, deltaX<0 => lookAtUp, deltaY>0 => lookAtLeft, deltaY<0 => lookAtRight
 	void MouseMoved(Camera* pCamera, float deltaX, float deltaY);
-
+	
 
 #ifdef __cplusplus
 }

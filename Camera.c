@@ -79,3 +79,4 @@ void MouseMoved(Camera* pCamera, float deltaX, float deltaY)
 	pCamera->View[0] += 0.01*exp(log(1.1)*pCamera->SpeedRotation[0])*deltaX;
 	pCamera->View[1] += 0.01*exp(log(1.1)*pCamera->SpeedRotation[1])*(-1)*deltaY;
 }
+
