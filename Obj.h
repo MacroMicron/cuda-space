@@ -44,7 +44,15 @@ extern "C" {
 	**	notes	:	Gets the node related to the reference number and draws its data.
 	*/
 	void DrawOBJ(ObjFile id);
+	
+	
+	//work with lights functions:
+	//void AddLight(ObjVertex vertex, ObjFile id);
+	//void DrawLights(const ObjFile id);
+	//void RemoveLight(ObjFile id);
+	//ObjVertex* GetLights(ObjFile id);
 
+		
 	/*
 	**	func	:	DeleteOBJ
 	**	params	:	id	-	a reference ID to the mesh you wish to delete
@@ -68,7 +76,9 @@ extern "C" {
 	*/
 	//ObjMesh* ReturnObjMesh(ObjFile objFile);
 
-
+	
+	//for all faces in the model do: TypesOfFaces[i] = 0;
+	void FlushTypesOfFaces(ObjFile id);
 
 #ifdef __cplusplus
 }

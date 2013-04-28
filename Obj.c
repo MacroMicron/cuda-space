@@ -20,9 +20,9 @@
 
 
 //macros for change color which depends of type of the color (first, second, double or other)
-//output: the flaot[3] vector (StandartColor, FirstVisionColor, SecondVisionColor, DoubleVisionColor)
-//input: {0, 1, 2, 3}
-#define CHOOSE_FACE_COLOR(Type) ((Type) ? ( (Type)==1 ? FirstVisionColor : ((Type) == 2 ? SecondVisionColor : DoubleVisionColor) ) : StandartColor)
+//output: the float[3] vector (StandartColor/UndefinedVisionColor, FirstVisionColor, SecondVisionColor, DoubleVisionColor, OtherVision)
+//input: {0, 1, 2, 3, 4}
+#define CHOOSE_FACE_COLOR(Type) ((Type) ? ( (Type)==1 ? FirstVisionColor : ((Type) == 2 ? SecondVisionColor : ( (Type)==3 ? DoubleVisionColor : OtherVisionColor)) ) : StandartColor)
 
 //buffer for read string
 #define BUFFER 256 
@@ -489,8 +489,8 @@ void DrawOBJ(const ObjFile id)
 	float StandartColor[3] = {0.5f, 0.5f, 0.5f},
 		FirstVisionColor[3] = {0.5f, 0.0f, 0.0f},
 		SecondVisionColor[3] = {0.0f, 0.5f, 0.0f},
-		DoubleVisionColor[3] = {0.5f, 0.0f, 0.5f};
-
+		DoubleVisionColor[3] = {0.5f, 0.0f, 0.5f},
+		OtherVisionColor[3] = {1.0f, 1.0f, 1.0f};
 
 	/*
 	**	Because the meshes are on a linked list, we first need to find the
@@ -865,3 +865,28 @@ ObjMesh* ReturnObjMesh(ObjFile objFile)
 
 	return pCurr;
 }
+
+
+//
+void FlushTypesOfFaces(ObjFile id)
+{
+        ObjMesh *pMesh = g_LinkedListHead;
+
+        while(pMesh && pMesh->m_iMeshID != id)
+        {
+                pMesh = pMesh->m_pNext;
+        }
+
+        if (pMesh != NULL)
+        {
+                if (pMesh->m_aTypesOfFaces != NULL)
+                {
+			unsigned int i;
+			for (i=0; i < pMesh->m_iNumberOfFaces; i++)
+			{
+				pMesh->m_aTypesOfFaces[i] = 0;				
+			}
+		}
+	}	
+}
+

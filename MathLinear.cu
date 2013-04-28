@@ -356,7 +356,7 @@ CalcMesh* CreateCalcMesh(ObjMesh *objMesh)
 		calcMesh->Faces = (CalcFace*) calloc(calcMesh->NumberOfFaces, sizeof(CalcFace));
 		for (i=0; i < calcMesh->NumberOfFaces; i++)
 		{
-			calcMesh->TypesOfFaces[i] = OTHER_VISION;
+			calcMesh->TypesOfFaces[i] = UNDEFINED_VISION;
 			calcMesh->Faces[i].VertexCount = objMesh->m_aFaces[i].m_iVertexCount;
 			calcMesh->Faces[i].VertexArray = calcMesh->VertexArray;
 			for (j=0; j < calcMesh->Faces[i].VertexCount; j++)

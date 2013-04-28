@@ -15,8 +15,9 @@ extern "C" {
 //it's types of faces (polygons): first, second and other
 #define FIRST_VISION 1
 #define SECOND_VISION 2
-#define DOUBLE_VISION 3 //if the face is first and second vision
-#define OTHER_VISION 0
+#define DOUBLE_VISION 3 	//if the face is first and second vision
+#define OTHER_VISION 4 		//OTHER_VISION != UNDEFINED_VISION
+#define UNDEFINED_VISION 0 	//not counted. We need this type because "counting process" is very hard and we can't to do it instantly
 
 
 
