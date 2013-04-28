@@ -58,6 +58,7 @@ ObjFile object;
 //input variables
 int Argc;
 char **Argv;
+char *Filename=NULL;
 
 //procedures
 void InitSettings() {
@@ -103,14 +104,14 @@ void InitSettings() {
 	printf(instructionList);
 
 	//temp
-	if (Argc > 1)
+	if (Filename)
 	{
 		//char* filename = "D:\\Projects\\old space\\space\\model\\elephav.obj";
 		//char* filename = "elepham.obj";
 		//char* filename = "D:\\Projects\\old space\\space\\model\\soyz.obj";
-		printf("%s\n", Argv[1]);
+		printf("%s\n", Filename);
 		printf("Loading file... Please Wait...\n");
-		object = LoadOBJ(Argv[1]);
+		object = LoadOBJ(Filename);
 		printf("File loaded.\n");
 	}
 	else Keyboard('L', 0,0);
@@ -410,22 +411,90 @@ void MouseMotion(int x, int y) {
 }
 
 
+/* 
+** procedure for load interactive graphical mode
+*/
+
+void GraphicalMode()
+{
+        glutInit(&Argc, Argv);
+        glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+        glutInitWindowSize(640, 480);
+        glutInitWindowPosition(0, 0);
+        glutCreateWindow("Space");
+
+        glutDisplayFunc(Display);
+        glutReshapeFunc(Reshape);
+        glutKeyboardFunc(Keyboard);
+        glutMouseFunc(ButtonPress);
+        glutMotionFunc(MouseMotion);
+
+        InitSettings();
+        glutMainLoop();
+}
+
+
+/*
+** procedure for load non-interactive calculate program mode
+*/
+void CalculateMode(char *output)
+{	
+	object = LoadOBJ(Filename);
+	if (GetLights(object))
+        {
+		mesh = CreateCalcMesh(ReturnObjMesh(object));
+		GPU_example(mesh);
+		CopyResults(mesh, ReturnObjMesh(object));	
+		SaveOBJ(object, output);
+		exit(0);
+	}
+	else
+	{
+		printf("There is no lights! Please, enter light!\n");
+		exit(1);
+	}
+}
+
+
 int main(int argc, char **argv) {
 	Argc = argc;
 	Argv = argv;
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-	glutInitWindowSize(640, 480);
-	glutInitWindowPosition(0, 0);
-	glutCreateWindow("Space");
+	
+	int i;
 
-	glutDisplayFunc(Display);
-	glutReshapeFunc(Reshape);
-	glutKeyboardFunc(Keyboard);
-	glutMouseFunc(ButtonPress);
-	glutMotionFunc(MouseMotion);
+	//filename (key -f or --file)
+	for (i=1; i<Argc; i++)
+	{	
+		if (( strcmp(Argv[i], "-f")==0 )||( strcmp(Argv[i], "--file")==0 ))
+		{
+			if (i+1<Argc) 
+			{
+				Filename=Argv[i+1];
+			}
+			else
+			{ 
+				printf("Error in input arguments!\n");
+			}
+		}
+	}
+	
+	//calculate mode or interactive mode
+	for (i=1; i<Argc; i++)
+	{
+		if (( strcmp(Argv[i], "-c")==0 )||( strcmp(Argv[i], "--calculate")==0 ))
+		{	
+			if ((i+1<Argc)&&(Filename!=NULL))
+			{
+				CalculateMode(Argv[i+1]);
+			}
+			else
+			{
+				printf("Error in input arguments!\n");
+			}
+		}
+	}
+	
+	GraphicalMode();
 
-	InitSettings();
-	glutMainLoop();
 	return 0;
 }
