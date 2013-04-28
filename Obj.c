@@ -584,6 +584,11 @@ void AddLight(ObjVertex vertex, ObjFile id)
 			pMesh->m_aLights = (ObjVertex*) malloc(sizeof(ObjVertex));
 			assert(pMesh->m_aLights);
 		}
+                if (GlobalLight == NULL)
+                {
+                        GlobalLight = gluNewQuadric();
+                        assert(GlobalLight);
+                }
 		pMesh->m_aLights[0].x = vertex.x;
 		pMesh->m_aLights[0].y = vertex.y;
 		pMesh->m_aLights[0].z = vertex.z;
@@ -614,13 +619,11 @@ void DrawLights(const ObjFile id)
         */
         if(pMesh != NULL)
         {
-		if (pMesh->m_aLights)
+		if ((pMesh->m_aLights != NULL) && (GlobalLight != NULL))
 		{
 
 			glPushMatrix();	
 			glTranslated(pMesh->m_aLights[0].x, pMesh->m_aLights[0].y, pMesh->m_aLights[0].z);
-  			GlobalLight = gluNewQuadric();
-  			assert(GlobalLight);
 			gluQuadricDrawStyle(GlobalLight, GLU_FILL);
   			glColor3fv(LightColor);
   			gluSphere(GlobalLight, 20,10,10);
@@ -646,10 +649,14 @@ void RemoveLight(ObjFile id)
         {
                 if (pMesh->m_aLights != NULL)
                 {        
-  			gluDeleteQuadric(GlobalLight);
-			GlobalLight = NULL;
 			free(pMesh->m_aLights);
+			pMesh->m_aLights = NULL;
                 }
+		if (GlobalLight != NULL)
+		{
+			gluDeleteQuadric(GlobalLight);
+                        GlobalLight = NULL;
+		}
         }		
 }
 
@@ -727,7 +734,13 @@ void DeleteMesh(ObjMesh* pMesh)
 			free(pMesh->m_aLights);
 			pMesh->m_aLights = NULL;
 		}
-			
+		
+		if (GlobalLight)
+		{
+			gluDeleteQuadric(GlobalLight);
+                        GlobalLight = NULL;
+		}
+						
 		free( pMesh );
 	}
 }

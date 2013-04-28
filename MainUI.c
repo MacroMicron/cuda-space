@@ -35,6 +35,8 @@ const char* instructionList = "\nInstructions:\n"
 		"	'-' - decrement moving step\n"
 		"	H or I - show instruction list\n"
 		"	X - exit from program\n"
+		"	'[' - add light\n" //only 1 light in this implementation
+		"	']' - remove light\n"
 		"\n";
 
 //just a bug hack
@@ -126,7 +128,10 @@ void FirstInit() {
 	int time;
 
 	if (!TryOne) {
+	        oLight.x = light.x = 100.0f;
+	        oLight.y = oLight.z = light.y = light.z = 50.0f;
 		AddLight(oLight, object);
+		
 		mesh = CreateCalcMesh(ReturnObjMesh(object));
 		printf("DEBUG CreatedCalcMesh\n");
 
@@ -179,14 +184,10 @@ void Display() {
 	//glLightfv(GL_LIGHT0,GL_POSITION,camera.Position);
 
 	
-    
-        oLight.x = light.x = 100.0f;
-        oLight.y = oLight.z = light.y = light.z = 50.0f;
-
 	FirstInit();
 	
 	DrawOBJ(object);
-	DrawLights(object);	
+	DrawLights(object);
 
 	//if (obj!=NULL)
 	//if (obj->TypesOfFaces != NULL)
@@ -322,6 +323,19 @@ void Keyboard(unsigned char Key, int x, int y) {
                 printf("File saved.\n");
 
 	}
+	
+	if (Key == '[') {
+		printf("Add light:\n");
+		printf("Enter the point of the light in standard 'Float Float Float'.\n");
+		scanf("%f %f %f", &oLight.x, &oLight.y, &oLight.z);
+		AddLight(oLight, object);
+		printf("Light (%f, %f, %f) added.\n", oLight.x, oLight.y, oLight.z);
+	}
+
+	if (Key == ']') {
+		RemoveLight(object);
+		printf("Light removed.\n");
+	}	
 
 	glutPostRedisplay();
 }
