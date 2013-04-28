@@ -143,6 +143,7 @@ typedef struct
 					 NumberOfFaces;		/*	The number of faces in the m_aFaces array, equal ObjMesh.m_iNumberOfFaces */
 
 	unsigned char	*TypesOfFaces;		/*FIRST or SECOND or OTHER types*/
+	CalcVertex*	Lights;
 } CalcMesh;
 
 

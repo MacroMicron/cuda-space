@@ -343,10 +343,14 @@ CalcMesh* CreateCalcMesh(ObjMesh *objMesh)
 	{
 		int i,j;
 		calcMesh = (CalcMesh*) malloc(sizeof(CalcMesh));
+		assert(calcMesh);
 		calcMesh->NumberOfFaces = objMesh->m_iNumberOfFaces;
 		calcMesh->NumberOfVertices = objMesh->m_iNumberOfVertices;
 		calcMesh->TypesOfFaces = (unsigned char*) calloc(calcMesh->NumberOfFaces, sizeof(unsigned char));
+		assert(calcMesh->TypesOfFaces);
 		calcMesh->VertexArray = (CalcVertex*) calloc(calcMesh->NumberOfVertices, sizeof(CalcVertex));
+		assert(calcMesh->VertexArray);
+		calcMesh->Lights = NULL;
 		for (i=0; i < calcMesh->NumberOfVertices; i++)
 		{
 			calcMesh->VertexArray[i].x = objMesh->m_aVertexArray[i].x;
@@ -364,6 +368,13 @@ CalcMesh* CreateCalcMesh(ObjMesh *objMesh)
 				calcMesh->Faces[i].VertexIndices[j] = objMesh->m_aFaces[i].m_aVertexIndices[j];
 			}
 			PlaneDefine(calcMesh->Faces + i);
+		}
+		if (objMesh->m_aLights) //only one light in this implementation
+		{
+			calcMesh->Lights = (CalcVertex*) malloc(sizeof(CalcVertex));
+			calcMesh->Lights[0].x = objMesh->m_aLights[0].x;
+			calcMesh->Lights[0].y = objMesh->m_aLights[0].y;
+			calcMesh->Lights[0].z = objMesh->m_aLights[0].z;
 		}
 	}
 	return calcMesh;
@@ -390,6 +401,7 @@ void DeleteCalcMesh(CalcMesh *calcMesh)
 		free(calcMesh->Faces);
 		free(calcMesh->VertexArray);
 		free(calcMesh->TypesOfFaces);
+		if (calcMesh->Lights) free(calcMesh->Lights);
 		free(calcMesh);
 		calcMesh = NULL;
 	}
@@ -568,6 +580,7 @@ void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret)
 	//for (i=0; i < mesh->NumberOfFaces; i++)
 	i = threadIdx.x + blockIdx.x * blockDim.x;
 	if (i < mesh->NumberOfFaces)
+	{
 		if ((mesh->TypesOfFaces[i] == FIRST_VISION)&&(mesh->Faces[i].VertexCount == 3))
 		{
 			GET_CENTROID(centroidFirst.x, centroidFirst.y, centroidFirst.z,
@@ -596,14 +609,14 @@ void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret)
 								mesh->TypesOfFaces[j] = DOUBLE_VISION;
 							else mesh->TypesOfFaces[j] = SECOND_VISION;
 
-					}
+		//*ret = 99;			}
 		}
 
 		//else if non-triangle ...
 		//...
 		//..
 
-
+	}
 	*ret = 99;
 }
 
@@ -698,6 +711,9 @@ void GPU_example(CalcMesh* mesh)
 	assert( cudaMalloc((void **)&temp_mesh.TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned char)) == cudaSuccess );
 	assert( cudaMemcpy(temp_mesh.TypesOfFaces, mesh->TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned char), cudaMemcpyHostToDevice) == cudaSuccess );
 
+	assert( cudaMalloc((void **)&temp_mesh.Lights, sizeof(CalcVertex)) == cudaSuccess );
+	assert( cudaMemcpy(temp_mesh.Lights, mesh->Lights, sizeof(CalcVertex), cudaMemcpyHostToDevice) == cudaSuccess );	
+	
 	assert( cudaMalloc((void **)&cuda_mesh, sizeof(CalcMesh)) == cudaSuccess );
 	assert( cudaMemcpy(cuda_mesh, &temp_mesh, sizeof(CalcMesh), cudaMemcpyHostToDevice) == cudaSuccess );
 
@@ -727,28 +743,29 @@ void GPU_example(CalcMesh* mesh)
 	cudaGetDeviceProperties( &prop , 0 );
 	//printf("%d\n", prop.maxThreadsPerBlock);
 
-	CalcVertex light;
-	light.x = 100.0f;
-	light.y = 50.0f;
-	light.z = 50.0f;
+	//CalcVertex light;
+	//light.x = mesh->Lights[0].x;
+	//light.y = mesh->Lights[0].y;
+	//light.z = mesh->Lights[0].z;
 	//DWORD time;
 
-	GPU_tester<<<1, 1>>>(cuda_mesh, temp, &light);
+	GPU_tester<<<1, 1>>>(cuda_mesh, temp, mesh->Lights);
 
 	{
 		printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
-		cudaToCountFirstFaces<<< 60000, prop.maxThreadsPerBlock-150>>>(light, cuda_mesh, temp);
+		cudaToCountFirstFaces<<< 60000, prop.maxThreadsPerBlock-150>>>(mesh->Lights[0], cuda_mesh, temp);
 		//for (integer face = 0; face < 1000; face++){
 		//cudaToCountFirstFaces<<< 1, 1>>>(face, light, cuda_mesh, temp);
-		
-		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
-				
+		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));	
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("DEBUG: it's resulsts %f \n", temp2);
 		//}
-//DEBUG		cudaToCountSecondAndDoubleFaces<<< 50000, prop.maxThreadsPerBlock-150>>>(cuda_mesh, temp);
-//DEBUG		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
-//DEBUG		printf("GPU test 2:%f \n", temp2);
+		
+		printf("DEBUG: cudaToCountSecondAndDoubleFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
+		cudaToCountSecondAndDoubleFaces<<< 50000, prop.maxThreadsPerBlock-150>>>(cuda_mesh, temp);
+		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
+		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
+		printf("GPU test 2:%f \n", temp2);
 	}
 
 	cudaMemcpy(mesh->TypesOfFaces, temp_mesh.TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned char), cudaMemcpyDeviceToHost);

@@ -38,6 +38,7 @@ const char* instructionList = "\nInstructions:\n"
 		"	'[' - add light\n" 			//only 1 light in this implementation
 		"	']' - remove light\n"
 		"	N - move to the next light\n" 		//only 1 light not Previous light command
+		"	C - count first, second, double vision faces\n"		 
 		"\n";
 
 //just a bug hack
@@ -133,19 +134,20 @@ void FirstInit() {
 	        oLight.y = oLight.z = light.y = light.z = 50.0f;
 		AddLight(oLight, object);
 		
-		mesh = CreateCalcMesh(ReturnObjMesh(object));
+		Keyboard('C', 0,0);
+	/*	mesh = CreateCalcMesh(ReturnObjMesh(object));
 		printf("DEBUG CreatedCalcMesh\n");
 
 		GPU_example(mesh);
-		printf("DEBUG GPU exampled\n");
+		printf("DEBUG GPU exampled\n");*/
 		//ToCountFirstFaces(&light, mesh);
 		//time = GetTickCount();
 
 		//ToCountSecondAndDoubleFaces(mesh);
 		//time = GetTickCount() - time;		
 
-		CopyResults(mesh, ReturnObjMesh(object));
-		printf("DEBUG Copied Results\n");
+	/*	CopyResults(mesh, ReturnObjMesh(object));
+		printf("DEBUG Copied Results\n");*/
 		TryOne = 1;
 		/*		for (iter=0; iter < mesh->NumberOfFaces; iter++)
 		 {
@@ -351,6 +353,25 @@ void Keyboard(unsigned char Key, int x, int y) {
 		else
 		{
 			printf("No lights.\n");
+		}
+	}
+	
+	if (Key == 'C' || Key == 'c') {
+		if (GetLights(object))
+		{
+			printf("Counting first, second and double vision faces. Please wait...\n");		
+			if (mesh) 
+			{
+				DeleteCalcMesh(mesh);
+			}
+		        mesh = CreateCalcMesh(ReturnObjMesh(object));
+        	        GPU_example(mesh);
+                	CopyResults(mesh, ReturnObjMesh(object));
+			printf("Counted.\n");
+		}
+		else
+		{
+			printf("There is no lights! Please, enter light!\n");
 		}
 	}
 	

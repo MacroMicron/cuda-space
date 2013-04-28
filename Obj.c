@@ -148,6 +148,7 @@ ObjFile LoadOBJ(const char *filename)
 		{
 			++pMesh->m_iNumberOfFaces;
 		}
+		
 	}
 
 	/*
@@ -675,10 +676,7 @@ ObjVertex* GetLights(ObjFile id)
 
         if (pMesh != NULL)
         {
-                if (pMesh->m_aLights != NULL)
-                {
-			return pMesh->m_aLights;
-  		}
+		return pMesh->m_aLights;
 	}
 	return NULL;
 }
