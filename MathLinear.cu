@@ -4,6 +4,7 @@
 #include "MathLinear.cuh"
 #include <malloc.h>
 #include <assert.h>
+#include <math.h>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -88,6 +89,11 @@
 								  (y1) = (y1) + (3.0*(PRECISION)*( (y2) - (y1) )/ ( ((x2)-(x1))*((x2)-(x1)) + ((y2)-(y1))*((y2)-(y1)) + ((z2)-(z1))*((z2)-(z1)) ));			\
 								  (z1) = (z1) + (3.0*(PRECISION)*( (z2) - (z1) )/ ( ((x2)-(x1))*((x2)-(x1)) + ((y2)-(y1))*((y2)-(y1)) + ((z2)-(z1))*((z2)-(z1)) ));}
 
+//interval ro between A and B
+#define INTERVAL_BETWEEN_A_AND_B(ax,ay,az, bx,by,bz)										\
+								 sqrt(   ((ax)-(bx))*((ax)-(bx)) +  ((ay)-(by))*((ay)-(by)) +  ((az)-(bz))*((az)-(bz))  )
+
+
 //return true if segments intersected
 __host__ __device__
 bool IsSegmentsIntersected2D(real seg1p1x, real seg1p1y, real seg1p2x, real seg1p2y,
@@ -137,8 +143,30 @@ void PlaneDefine(CalcFace *face)
 							- ___ZPointFrom(face, 0) * ___PlaneFrom(face)[2] ;
 }
 
+//only for convex polygons!
+//need non-convex -to-> convex use operator before
+__host__ __device__
+void DefineConvexSquare(CalcFace *face)
+{
+	real a, b, c, p;
+	integer i;
+	face->Square = 0.0;
+	for (i=2; i < ___DimOf(face); i++)
+	{
+		//a = ro between 0 and i-1
+		a = INTERVAL_BETWEEN_A_AND_B(___XPointFrom(face, 0), ___YPointFrom(face, 0), ___ZPointFrom(face, 0), 		___XPointFrom(face, i-1), ___YPointFrom(face, i-1), ___ZPointFrom(face, i-1));
+		//b = ro between 0 and i-1
+		b = INTERVAL_BETWEEN_A_AND_B(___XPointFrom(face, 0), ___YPointFrom(face, 0), ___ZPointFrom(face, 0),            ___XPointFrom(face, i), ___YPointFrom(face, i), ___ZPointFrom(face, i));
+		//c = ro between i and i-1
+		c = INTERVAL_BETWEEN_A_AND_B(___XPointFrom(face, i), ___YPointFrom(face, i), ___ZPointFrom(face, i),            ___XPointFrom(face, i-1), ___YPointFrom(face, i-1), ___ZPointFrom(face, i-1));
+		p = (a+b+c) /2;
+		face->Square += sqrt(p*(p-a)*(p-b)*(p-c));
+	}
+}
+
 //true if Quadrilateral without intersection
 //only for 4-points Quadrilateral
+//TODO:need for all non-convex polyogns: non-convex -to-> convex.
 __host__ __device__
 void CorrectQuadrilateralSimplisity(CalcFace *face)
 {
@@ -335,7 +363,7 @@ integer IsSegmentIntersectModel(CalcVertex *point1, CalcVertex *point2, CalcMesh
 }
 
 
-
+//TODO PlaneDefine and SquareDefine - it is a calculate procedure. It shoud be on the GPU or CPU differently from CreateCalcMesh
 CalcMesh* CreateCalcMesh(ObjMesh *objMesh)
 {
 	CalcMesh* calcMesh = NULL;
@@ -358,6 +386,7 @@ CalcMesh* CreateCalcMesh(ObjMesh *objMesh)
 			calcMesh->VertexArray[i].z = objMesh->m_aVertexArray[i].z;
 		}
 		calcMesh->Faces = (CalcFace*) calloc(calcMesh->NumberOfFaces, sizeof(CalcFace));
+		//real p,a,b,c;
 		for (i=0; i < calcMesh->NumberOfFaces; i++)
 		{
 			calcMesh->TypesOfFaces[i] = UNDEFINED_VISION;
@@ -367,7 +396,10 @@ CalcMesh* CreateCalcMesh(ObjMesh *objMesh)
 			{
 				calcMesh->Faces[i].VertexIndices[j] = objMesh->m_aFaces[i].m_aVertexIndices[j];
 			}
+			
 			PlaneDefine(calcMesh->Faces + i);
+			//only for convex polygons
+			DefineConvexSquare(calcMesh->Faces+i);
 		}
 		if (objMesh->m_aLights) //only one light in this implementation
 		{
@@ -766,6 +798,7 @@ void GPU_example(CalcMesh* mesh)
 		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("GPU test 2:%f \n", temp2);
+
 	}
 
 	cudaMemcpy(mesh->TypesOfFaces, temp_mesh.TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned char), cudaMemcpyDeviceToHost);

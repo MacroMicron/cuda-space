@@ -125,6 +125,8 @@ typedef struct
 											points */
 	unsigned char  VertexCount;				/*	the number of vertices that make up this mesh, ie, 3 = triangle; 4 = quad etc */
 
+	real		  Square;		//it is a polygon square
+
 	CalcVertex	  *VertexArray;				/* It's a constant for all polygons (faces) in one mesh, which is equal a VertexArray
 											in the mesh. Yes, it's a static field (in our mind) but not in real life,
 											because C-language does not support static fields.

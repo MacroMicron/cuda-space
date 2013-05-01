@@ -82,7 +82,10 @@ typedef struct _ObjMesh
 	struct _ObjMesh *m_pNext;				/*	Each mesh will be stored internally as a node on a linked list */
 	ObjFile			 m_iMeshID;				/*	the ID of the mesh	*/
 	unsigned char	*m_aTypesOfFaces;		/*FIRST or SECOND or OTHER types*/
-	ObjVertex	*m_aLights;			//array of lights - only 1 or 0 in current implementation		
+	ObjVertex	*m_aLights;			//array of lights - only 1 or 0 in current implementation	
+
+	//unsigned int	m_iNumberSpherePolygons		/*all our spaceship in the big sphere inside */
+	
 } ObjMesh;
 
 #endif
