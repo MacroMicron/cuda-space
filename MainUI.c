@@ -194,6 +194,7 @@ void Display() {
 	
 	DrawOBJ(object);
 	DrawLights(object);
+	DrawSphere(object);
 
 	//if (obj!=NULL)
 	//if (obj->TypesOfFaces != NULL)

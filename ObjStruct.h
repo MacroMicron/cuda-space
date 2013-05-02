@@ -84,8 +84,9 @@ typedef struct _ObjMesh
 	unsigned char	*m_aTypesOfFaces;		/*FIRST or SECOND or OTHER types*/
 	ObjVertex	*m_aLights;			//array of lights - only 1 or 0 in current implementation	
 
-	//unsigned int	m_iNumberSpherePolygons		/*all our spaceship in the big sphere inside */
-	
+	unsigned int	m_iNumberSpherePolygons;		/*all our spaceship in the big sphere inside */
+	float 		*m_aSpherePolygonRadiosity;	/*radiosity on polygon (number of polygons in the m_iNumberSpherePolygons */
+	ObjVertex	*m_aSphereVertexArray;		/* for speedup opengl scene */
 } ObjMesh;
 
 #endif

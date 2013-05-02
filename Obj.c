@@ -15,7 +15,7 @@
 #include <malloc.h>
 #include "ObjStruct.h"
 #include "Obj.h"
-
+#include <math.h>
 
 
 
@@ -79,15 +79,130 @@ ObjMesh *MakeOBJ()
 	pMesh->m_iMeshID			= ++g_ObjIdGenerator;
 	pMesh->m_aTypesOfFaces		= NULL;
 	pMesh->m_aLights		= NULL;
+	pMesh->m_aSpherePolygonRadiosity	= NULL;
+	pMesh->m_aSphereVertexArray	= NULL;	
 
 	/*
 	**	Insert the mesh at the beginning of the linked list
 	*/
 	pMesh->m_pNext				= g_LinkedListHead;
 	g_LinkedListHead			= pMesh;
-
+	
+	
+	ChangeNumberSpherePolygons(3, pMesh->m_iMeshID);		
+	//it is like pMesh->m_iNumberSpherePolygons = 256;
+	//there is restrict on this number: i think only 2^n
+	
 	return pMesh;
 }
+
+
+//Change the detalisation of the spaceship outside sphere
+//I think only 2^n numbers
+void ChangeNumberSpherePolygons(unsigned int SpherePolygons, ObjFile id)
+{
+        ObjMesh *pMesh = g_LinkedListHead;
+        while(pMesh && pMesh->m_iMeshID != id)
+        {
+                pMesh = pMesh->m_pNext;
+        }
+	
+        if (pMesh != NULL)
+        {
+		if (pMesh->m_aSpherePolygonRadiosity)
+		{
+			free(pMesh->m_aSpherePolygonRadiosity);
+		}
+		if (pMesh->m_aSphereVertexArray)
+		{
+			free(pMesh->m_aSphereVertexArray);	
+		}
+		if (SpherePolygons >= 3 )
+		{
+			unsigned int i, j;
+			pMesh->m_iNumberSpherePolygons = SpherePolygons;
+			pMesh->m_aSpherePolygonRadiosity = (float*) calloc(SpherePolygons*SpherePolygons, sizeof(float));
+			assert(pMesh->m_aSpherePolygonRadiosity);
+			for (i=0; i < SpherePolygons*SpherePolygons; i++)
+			{
+				pMesh->m_aSpherePolygonRadiosity[i] = 0.0;
+			}
+			pMesh->m_aSphereVertexArray = (ObjVertex*) calloc(SpherePolygons*SpherePolygons, sizeof(ObjVertex));
+			assert(pMesh->m_aSphereVertexArray);
+
+
+			float phi, alpha, pi = 3.141592653;
+                	float r = 5000.0;
+                	for (i=0; i<SpherePolygons; i++)
+                	{
+                        	for (j=0; j<SpherePolygons; j++)
+                        	{
+					printf("%i %i\n",i,j);
+	                                phi = -pi/2 + i*pi/SpherePolygons;
+        	                        alpha = -pi + j*2*pi/SpherePolygons;
+        	                                
+					pMesh->m_aSphereVertexArray[SpherePolygons*i+j].x = r*cos(phi)*cos(alpha);
+					pMesh->m_aSphereVertexArray[SpherePolygons*i+j].y = r*cos(phi)*sin(alpha);
+					pMesh->m_aSphereVertexArray[SpherePolygons*i+j].z = r*sin(phi);
+                                }    
+			}
+		}	
+	}
+}
+
+
+//Draw a big the sphere outside of the spaceship 
+//if you don't want to draw sphere just set at zero ChangeNumberSpherePolygons(0) 
+//PS 4 polygons - minimal available polygons for this 'Sphere'
+void DrawSphere(ObjFile id)
+{
+        ObjMesh *pMesh = g_LinkedListHead;
+        while(pMesh && pMesh->m_iMeshID != id)
+        {
+                pMesh = pMesh->m_pNext;
+        }
+
+        if (pMesh != NULL)
+        {
+		if (pMesh->m_aSphereVertexArray)
+		{
+			unsigned int i, j, i_, j_, SpherePolygons = pMesh->m_iNumberSpherePolygons;
+			float SphereColor[] = {0.0f, 0.0f, 0.25f};
+			for (i=0; i<SpherePolygons; i++)
+			{ 
+				for (j=0; j<SpherePolygons; j++)
+				{
+					i_ = i-1; j_ = j-1;
+					if (i_==-1) i_+=SpherePolygons;
+					if (j_==-1) j_+=SpherePolygons;
+					glColor3fv(SphereColor);
+ 					glBegin(GL_POLYGON);
+	                               	{
+						
+						//glNormal3f( x, y, z);
+						glVertex3f(pMesh->m_aSphereVertexArray[SpherePolygons*i+j].x, 
+							   pMesh->m_aSphereVertexArray[SpherePolygons*i+j].y,
+							   pMesh->m_aSphereVertexArray[SpherePolygons*i+j].z);
+						
+	                                	glVertex3f(pMesh->m_aSphereVertexArray[SpherePolygons*i_+j].x, 
+							   pMesh->m_aSphereVertexArray[SpherePolygons*i_+j].y,
+							   pMesh->m_aSphereVertexArray[SpherePolygons*i_+j].z);
+						
+						glVertex3f(pMesh->m_aSphereVertexArray[SpherePolygons*i_+j_].x,
+							   pMesh->m_aSphereVertexArray[SpherePolygons*i_+j_].y,
+							   pMesh->m_aSphereVertexArray[SpherePolygons*i_+j_].z);
+
+						glVertex3f(pMesh->m_aSphereVertexArray[SpherePolygons*i+j_].x,
+							   pMesh->m_aSphereVertexArray[SpherePolygons*i+j_].y,
+							   pMesh->m_aSphereVertexArray[SpherePolygons*i+j_].z);
+					}	
+					glEnd();
+				}
+			}
+		}	
+	}
+}
+
 
 
 ObjFile LoadOBJ(const char *filename)
@@ -661,7 +776,6 @@ void DrawLights(const ObjFile id)
         {
 		if ((pMesh->m_aLights != NULL) && (GlobalLight != NULL))
 		{
-
 			glPushMatrix();	
 			glTranslated(pMesh->m_aLights[0].x, pMesh->m_aLights[0].y, pMesh->m_aLights[0].z);
 			gluQuadricDrawStyle(GlobalLight, GLU_FILL);
