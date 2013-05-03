@@ -89,8 +89,8 @@ ObjMesh *MakeOBJ()
 	g_LinkedListHead			= pMesh;
 	
 	
-	ChangeNumberSpherePolygons(3, pMesh->m_iMeshID);		
-	//it is like pMesh->m_iNumberSpherePolygons = 256;
+	ChangeNumberSphereDetalisation(4, pMesh->m_iMeshID);		
+	//it is like pMesh->m_iNumberSphereDetalisation = 256;
 	//there is restrict on this number: i think only 2^n
 	
 	return pMesh;
@@ -99,7 +99,7 @@ ObjMesh *MakeOBJ()
 
 //Change the detalisation of the spaceship outside sphere
 //I think only 2^n numbers
-void ChangeNumberSpherePolygons(unsigned int SpherePolygons, ObjFile id)
+void ChangeNumberSphereDetalisation(unsigned int SphereDetalisation, ObjFile id)
 {
         ObjMesh *pMesh = g_LinkedListHead;
         while(pMesh && pMesh->m_iMeshID != id)
@@ -117,33 +117,33 @@ void ChangeNumberSpherePolygons(unsigned int SpherePolygons, ObjFile id)
 		{
 			free(pMesh->m_aSphereVertexArray);	
 		}
-		if (SpherePolygons >= 3 )
+		if (SphereDetalisation >= 3 )
 		{
 			unsigned int i, j;
-			pMesh->m_iNumberSpherePolygons = SpherePolygons;
-			pMesh->m_aSpherePolygonRadiosity = (float*) calloc(SpherePolygons*SpherePolygons, sizeof(float));
+			pMesh->m_iNumberSphereDetalisation = SphereDetalisation;
+			pMesh->m_aSpherePolygonRadiosity = (float*) calloc(SphereDetalisation*(SphereDetalisation-1), sizeof(float));
 			assert(pMesh->m_aSpherePolygonRadiosity);
-			for (i=0; i < SpherePolygons*SpherePolygons; i++)
+			for (i=0; i < SphereDetalisation*(SphereDetalisation-1); i++)
 			{
 				pMesh->m_aSpherePolygonRadiosity[i] = 0.0;
+				if (i%2) pMesh->m_aSpherePolygonRadiosity[i]+=0.5;
 			}
-			pMesh->m_aSphereVertexArray = (ObjVertex*) calloc(SpherePolygons*SpherePolygons, sizeof(ObjVertex));
+			pMesh->m_aSphereVertexArray = (ObjVertex*) calloc(SphereDetalisation*SphereDetalisation, sizeof(ObjVertex));
 			assert(pMesh->m_aSphereVertexArray);
 
 
 			float phi, alpha, pi = 3.141592653;
-                	float r = 5000.0;
-                	for (i=0; i<SpherePolygons; i++)
+                	float r = 3000.0;		//if you change this, don't forget to change in other places!
+                	for (i=0; i<SphereDetalisation; i++)
                 	{
-                        	for (j=0; j<SpherePolygons; j++)
+                        	for (j=0; j<SphereDetalisation; j++)
                         	{
-					printf("%i %i\n",i,j);
-	                                phi = -pi/2 + i*pi/SpherePolygons;
-        	                        alpha = -pi + j*2*pi/SpherePolygons;
+	                                phi = -pi/2.0 + i*pi/SphereDetalisation;
+        	                        alpha = -pi + j*2.0*pi/SphereDetalisation;
         	                                
-					pMesh->m_aSphereVertexArray[SpherePolygons*i+j].x = r*cos(phi)*cos(alpha);
-					pMesh->m_aSphereVertexArray[SpherePolygons*i+j].y = r*cos(phi)*sin(alpha);
-					pMesh->m_aSphereVertexArray[SpherePolygons*i+j].z = r*sin(phi);
+					pMesh->m_aSphereVertexArray[SphereDetalisation*i+j].x = r*cos(phi)*cos(alpha);
+					pMesh->m_aSphereVertexArray[SphereDetalisation*i+j].y = r*cos(phi)*sin(alpha);
+					pMesh->m_aSphereVertexArray[SphereDetalisation*i+j].z = r*sin(phi);
                                 }    
 			}
 		}	
@@ -166,35 +166,35 @@ void DrawSphere(ObjFile id)
         {
 		if (pMesh->m_aSphereVertexArray)
 		{
-			unsigned int i, j, i_, j_, SpherePolygons = pMesh->m_iNumberSpherePolygons;
+			unsigned int i, j, i_, j_, SphereDetalisation = pMesh->m_iNumberSphereDetalisation;
 			float SphereColor[] = {0.0f, 0.0f, 0.25f};
-			for (i=0; i<SpherePolygons; i++)
+			for (i=1; i<SphereDetalisation; i++)	//important! NumberOf(polygons)=SphereDetalisation*(SphereDetalisation-1)
 			{ 
-				for (j=0; j<SpherePolygons; j++)
+				for (j=0; j<SphereDetalisation; j++)
 				{
 					i_ = i-1; j_ = j-1;
-					if (i_==-1) i_+=SpherePolygons;
-					if (j_==-1) j_+=SpherePolygons;
+					if (j_==-1) j_+=SphereDetalisation;
+					SphereColor[2] = 0.25 + pMesh->m_aSpherePolygonRadiosity[SphereDetalisation*i+j];
 					glColor3fv(SphereColor);
  					glBegin(GL_POLYGON);
 	                               	{
 						
 						//glNormal3f( x, y, z);
-						glVertex3f(pMesh->m_aSphereVertexArray[SpherePolygons*i+j].x, 
-							   pMesh->m_aSphereVertexArray[SpherePolygons*i+j].y,
-							   pMesh->m_aSphereVertexArray[SpherePolygons*i+j].z);
+						glVertex3f(pMesh->m_aSphereVertexArray[SphereDetalisation*i+j].x, 
+							   pMesh->m_aSphereVertexArray[SphereDetalisation*i+j].y,
+							   pMesh->m_aSphereVertexArray[SphereDetalisation*i+j].z);
 						
-	                                	glVertex3f(pMesh->m_aSphereVertexArray[SpherePolygons*i_+j].x, 
-							   pMesh->m_aSphereVertexArray[SpherePolygons*i_+j].y,
-							   pMesh->m_aSphereVertexArray[SpherePolygons*i_+j].z);
+	                                	glVertex3f(pMesh->m_aSphereVertexArray[SphereDetalisation*i_+j].x, 
+							   pMesh->m_aSphereVertexArray[SphereDetalisation*i_+j].y,
+							   pMesh->m_aSphereVertexArray[SphereDetalisation*i_+j].z);
 						
-						glVertex3f(pMesh->m_aSphereVertexArray[SpherePolygons*i_+j_].x,
-							   pMesh->m_aSphereVertexArray[SpherePolygons*i_+j_].y,
-							   pMesh->m_aSphereVertexArray[SpherePolygons*i_+j_].z);
+						glVertex3f(pMesh->m_aSphereVertexArray[SphereDetalisation*i_+j_].x,
+							   pMesh->m_aSphereVertexArray[SphereDetalisation*i_+j_].y,
+							   pMesh->m_aSphereVertexArray[SphereDetalisation*i_+j_].z);
 
-						glVertex3f(pMesh->m_aSphereVertexArray[SpherePolygons*i+j_].x,
-							   pMesh->m_aSphereVertexArray[SpherePolygons*i+j_].y,
-							   pMesh->m_aSphereVertexArray[SpherePolygons*i+j_].z);
+						glVertex3f(pMesh->m_aSphereVertexArray[SphereDetalisation*i+j_].x,
+							   pMesh->m_aSphereVertexArray[SphereDetalisation*i+j_].y,
+							   pMesh->m_aSphereVertexArray[SphereDetalisation*i+j_].z);
 					}	
 					glEnd();
 				}

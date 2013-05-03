@@ -80,7 +80,7 @@ extern "C" {
 	//for all faces in the model do: TypesOfFaces[i] = 0;
 	void FlushTypesOfFaces(ObjFile id);
 
-	void ChangeNumberSpherePolygons(unsigned int SpherePolygons, ObjFile id);
+	void ChangeNumberSphereDetalisation(unsigned int SphereDetalisation, ObjFile id);
 
 
 #ifdef __cplusplus

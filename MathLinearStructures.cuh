@@ -146,6 +146,8 @@ typedef struct
 
 	unsigned char	*TypesOfFaces;		/*FIRST or SECOND or OTHER types*/
 	CalcVertex*	Lights;
+	real		*SpherePolygonRadiosity;
+	integer		NumberSphereDetalisation;
 } CalcMesh;
 
 

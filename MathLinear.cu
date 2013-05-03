@@ -19,6 +19,8 @@
 #include "cuda_runtime.h"
 #endif
 
+#include "math.h"
+
 //#define PRECISION 0.00001
 #define PRECISION 0.1
 
@@ -81,6 +83,16 @@
 //return out: x0, y0, z0
 #define GET_CENTROID(x0,y0,z0,  x1,y1,z1,  x2,y2,z2,  x3,y3,z3)			SEGMENT_DIVIDE((x0),(y0),(z0),  2.0/3.0,    (x1), (y1), (z1),   \
 																				((x2)+(x3))/2.0, ((y2)+(y3))/2.0, ((z2)+(z3))/2.0   )
+
+//get the centroid coordinates in the quadropolygon p1, p2, p3, p4
+//p1, p2, p3, p4 should be in one plane!
+//quadropolygon should be convex!
+//return out: x0, y0, z0
+#define GET_CENTROID_4(x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3, x4,y4,z4)								\
+								{ (x0) = ((x1)+(x2)+(x3)+(x4))/4.0;					\
+								  (y0) = ((y1)+(y2)+(y3)+(y4))/4.0;					\
+								  (z0) = ((z1)+(z2)+(z3)+(z4))/4.0;}
+
 
 //if we have segment [(1,1,1);(2,2,2)] => [(1.0003,1.0003,1.0003);(2,2,2)] whereif eps = 0.0001 (show PRECISION); on 3*eps value change
 //change only first point (!) => input: x1,y1,z1 ,x2,y2,z2; output: x1,y1,z1 (just change x1,y1,z1)
@@ -369,7 +381,7 @@ CalcMesh* CreateCalcMesh(ObjMesh *objMesh)
 	CalcMesh* calcMesh = NULL;
 	if (objMesh != NULL)
 	{
-		int i,j;
+		integer i,j;
 		calcMesh = (CalcMesh*) malloc(sizeof(CalcMesh));
 		assert(calcMesh);
 		calcMesh->NumberOfFaces = objMesh->m_iNumberOfFaces;
@@ -378,6 +390,15 @@ CalcMesh* CreateCalcMesh(ObjMesh *objMesh)
 		assert(calcMesh->TypesOfFaces);
 		calcMesh->VertexArray = (CalcVertex*) calloc(calcMesh->NumberOfVertices, sizeof(CalcVertex));
 		assert(calcMesh->VertexArray);
+		
+		calcMesh->NumberSphereDetalisation = objMesh->m_iNumberSphereDetalisation;
+		calcMesh->SpherePolygonRadiosity = (real*) calloc(calcMesh->NumberSphereDetalisation*(calcMesh->NumberSphereDetalisation-1), sizeof(real));
+		assert(calcMesh->SpherePolygonRadiosity);
+		for (i=0; i < calcMesh->NumberSphereDetalisation*(calcMesh->NumberSphereDetalisation-1); i++)
+		{
+			calcMesh->SpherePolygonRadiosity[i] = objMesh->m_aSpherePolygonRadiosity[i];	
+		}
+		
 		calcMesh->Lights = NULL;
 		for (i=0; i < calcMesh->NumberOfVertices; i++)
 		{
@@ -416,10 +437,14 @@ void CopyResults(CalcMesh *calcMesh, ObjMesh *objMesh)
 {
 	//if (objMesh->m_aTypesOfFaces != NULL)
 	{
-		int i;
+		integer i;
 		for (i=0; i < calcMesh->NumberOfFaces; i++)
 		{
 			objMesh->m_aTypesOfFaces[i] = calcMesh->TypesOfFaces[i];
+		}
+		for (i=0; i < calcMesh->NumberSphereDetalisation * (calcMesh->NumberSphereDetalisation-1); i++)
+		{
+			objMesh->m_aSpherePolygonRadiosity[i] = calcMesh->SpherePolygonRadiosity[i];
 		}
 	}
 }
@@ -434,6 +459,7 @@ void DeleteCalcMesh(CalcMesh *calcMesh)
 		free(calcMesh->VertexArray);
 		free(calcMesh->TypesOfFaces);
 		if (calcMesh->Lights) free(calcMesh->Lights);
+		if (calcMesh->SpherePolygonRadiosity) free(calcMesh->SpherePolygonRadiosity);
 		free(calcMesh);
 		calcMesh = NULL;
 	}
@@ -655,6 +681,48 @@ void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret)
 
 
 
+__global__
+void cudaToCountSphere(CalcMesh *mesh, float *ret)
+{
+        integer thread = threadIdx.x + blockIdx.x * blockDim.x;
+        if (thread < mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1))
+        {
+		integer	  i = thread / mesh->NumberSphereDetalisation + 1,	//for i=1 to i++<N
+			  j = thread % mesh->NumberSphereDetalisation,		//for j=0 to j++<N
+			  i_ = i-1,
+			  j_ = j-1;
+		if (j_==-1) j_+=mesh->NumberSphereDetalisation;
+
+		real	  r = 3000.0,
+		 	 pi = 3.14159265358979323846,
+			 iphi = -pi/2.0 +  i*pi/mesh->NumberSphereDetalisation,
+                        i_phi = -pi/2.0 + i_*pi/mesh->NumberSphereDetalisation,
+		       jalpha = -pi +  j*2.0*pi/mesh->NumberSphereDetalisation,
+		      j_alpha = -pi + j_*2.0*pi/mesh->NumberSphereDetalisation,
+			sinjalpha, cosjalpha, siniphi, cosiphi,
+			sinj_alpha, cosj_alpha, sini_phi, cosi_phi;
+			
+			sincos(iphi, &siniphi, &cosiphi);
+			sincos(i_phi, &sini_phi, &cosi_phi);
+			sincos(jalpha, &sinjalpha, &cosjalpha);
+			sincos(j_alpha, &sinj_alpha, &cosj_alpha);
+			
+		CalcVertex centroid; //the sphere polygon center
+		GET_CENTROID_4(	centroid.x, centroid.y, centroid.z, 
+				r*cosiphi*cosjalpha, r*cosiphi*sinjalpha, r*siniphi,
+				r*cosi_phi*cosjalpha, r*cosi_phi*sinjalpha, r*sini_phi,
+				r*cosi_phi*cosj_alpha, r*cosi_phi*sinj_alpha, r*sini_phi,
+				r*cosiphi*cosj_alpha, r*cosiphi*sinj_alpha, r*siniphi); 
+		
+		//change this
+		//ToCountFirstFaces(&centroid, mesh);	
+		
+		mesh->SpherePolygonRadiosity[thread] += 0.5f;
+		
+		
+	}
+	*ret = 99;
+}
 
 
 
@@ -733,6 +801,7 @@ void GPU_example(CalcMesh* mesh)
 
 	temp_mesh.NumberOfFaces = mesh->NumberOfFaces;
 	temp_mesh.NumberOfVertices = mesh->NumberOfVertices;
+	temp_mesh.NumberSphereDetalisation = mesh->NumberSphereDetalisation;
 
 
 	assert( cudaMalloc((void **)&temp_mesh.Faces, mesh->NumberOfFaces*sizeof(CalcFace)) == cudaSuccess );
@@ -745,6 +814,9 @@ void GPU_example(CalcMesh* mesh)
 
 	assert( cudaMalloc((void **)&temp_mesh.Lights, sizeof(CalcVertex)) == cudaSuccess );
 	assert( cudaMemcpy(temp_mesh.Lights, mesh->Lights, sizeof(CalcVertex), cudaMemcpyHostToDevice) == cudaSuccess );	
+	
+	assert( cudaMalloc((void **)&temp_mesh.SpherePolygonRadiosity, mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1)*sizeof(real)) == cudaSuccess );
+        assert( cudaMemcpy(temp_mesh.SpherePolygonRadiosity, mesh->SpherePolygonRadiosity, mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1)*sizeof(real), cudaMemcpyHostToDevice) == cudaSuccess );
 	
 	assert( cudaMalloc((void **)&cuda_mesh, sizeof(CalcMesh)) == cudaSuccess );
 	assert( cudaMemcpy(cuda_mesh, &temp_mesh, sizeof(CalcMesh), cudaMemcpyHostToDevice) == cudaSuccess );
@@ -798,11 +870,17 @@ void GPU_example(CalcMesh* mesh)
 		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("GPU test 2:%f \n", temp2);
-
+		
+		printf("DEBUG: cudaToCountSphere() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
+                cudaToCountSphere<<< 50000, prop.maxThreadsPerBlock-150>>>(cuda_mesh, temp);
+                printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
+                cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
+                printf("GPU test 3:%f \n", temp2);	
+		
 	}
 
 	cudaMemcpy(mesh->TypesOfFaces, temp_mesh.TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned char), cudaMemcpyDeviceToHost);
-	
+	cudaMemcpy(mesh->SpherePolygonRadiosity, temp_mesh.SpherePolygonRadiosity, mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1)*sizeof(real), cudaMemcpyDeviceToHost);
 	
 //DEBUG
 	{
