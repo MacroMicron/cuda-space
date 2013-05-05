@@ -89,7 +89,7 @@ ObjMesh *MakeOBJ()
 	g_LinkedListHead			= pMesh;
 	
 	
-	ChangeNumberSphereDetalisation(4, pMesh->m_iMeshID);		
+	ChangeNumberSphereDetalisation(32, pMesh->m_iMeshID);		
 	//it is like pMesh->m_iNumberSphereDetalisation = 256;
 	//there is restrict on this number: i think only 2^n
 	
@@ -274,7 +274,7 @@ ObjFile LoadOBJ(const char *filename)
 	//default types of faces: UNDEFINED
 	if ( pMesh->m_iNumberOfFaces > 0)
 	{
-		pMesh->m_aTypesOfFaces = (unsigned char*) calloc(pMesh->m_iNumberOfFaces, sizeof(unsigned char));
+		pMesh->m_aTypesOfFaces = (unsigned int*) calloc(pMesh->m_iNumberOfFaces, sizeof(unsigned int));
 		assert(pMesh->m_aTypesOfFaces);
 		for (i=0; i < pMesh->m_iNumberOfFaces; i++) 
 		{

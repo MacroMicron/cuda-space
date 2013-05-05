@@ -386,7 +386,7 @@ CalcMesh* CreateCalcMesh(ObjMesh *objMesh)
 		assert(calcMesh);
 		calcMesh->NumberOfFaces = objMesh->m_iNumberOfFaces;
 		calcMesh->NumberOfVertices = objMesh->m_iNumberOfVertices;
-		calcMesh->TypesOfFaces = (unsigned char*) calloc(calcMesh->NumberOfFaces, sizeof(unsigned char));
+		calcMesh->TypesOfFaces = (unsigned int*) calloc(calcMesh->NumberOfFaces, sizeof(unsigned int));
 		assert(calcMesh->TypesOfFaces);
 		calcMesh->VertexArray = (CalcVertex*) calloc(calcMesh->NumberOfVertices, sizeof(CalcVertex));
 		assert(calcMesh->VertexArray);
@@ -469,7 +469,7 @@ void DeleteCalcMesh(CalcMesh *calcMesh)
 
 //to count first faces from light-point (by segments [light, centroid of polygon])
 __host__ __device__
-void ToCountFirstFaces(CalcVertex *light, CalcMesh *mesh)
+void OLDToCountFirstFaces(CalcVertex *light, CalcMesh *mesh)
 {
 	CalcVertex centroid;
 	//int temp;
@@ -530,17 +530,17 @@ void ToCountFirstFaces(CalcVertex *light, CalcMesh *mesh)
 //}
 
 
-__global__
-void cudaToCountFirstFaces(CalcVertex light, CalcMesh* mesh, float* ret)
+//parallel model: Faces (blockIdx.x) x Faces (threadIdx.x) - it is our grid
+//TODO: change this function to the more universal (for use in other functions):
+//add bitarray[faces] - which faces to count
+__device__
+void ToCountFirstFaces(CalcVertex *light, CalcMesh* mesh, unsigned int *TypesOfFaces)
 {
 	CalcVertex centroid;
-	integer i; //intersections, i, j;
-	i = threadIdx.x + blockIdx.x * blockDim.x;// + beginFrom;
+	integer i, j; //threadIdx.x + blockIdx.x * blockDim.x;// + beginFrom;
 	//int temp;
 	//mesh->NumberOfFaces=1;
-	//for(i=0; i< mesh->NumberOfFaces; i++)
-	//if ((i >= beginFrom) && (i < beginFrom + 1))
-	if(i < mesh->NumberOfFaces)
+	for(i=blockIdx.x; i < mesh->NumberOfFaces; i+=gridDim.x)
 	{
 		//for triangles-polygons
 		if (mesh->Faces[i].VertexCount == 3)
@@ -554,13 +554,20 @@ void cudaToCountFirstFaces(CalcVertex light, CalcMesh* mesh, float* ret)
 
 			//change centroid on delta:
 			DECREASE_SEGMENT_TO_INTERVAL_3D(centroid.x, centroid.y, centroid.z,
-				light.x, light.y, light.z);
-
-			if (IsSegmentIntersectModel(&light, &centroid, mesh) == 0)
-				mesh->TypesOfFaces[i] = FIRST_VISION;
-			else mesh->TypesOfFaces[i] = OTHER_VISION;
+				light->x, light->y, light->z);
 			
+		        for (j=threadIdx.x; ((j < mesh->NumberOfFaces) && (TypesOfFaces[i] != OTHER_VISION)) ; j+=blockDim.x)
+		        {
+                		if(IsSegmentIntersectPolygon(light, &centroid, &mesh->Faces[j]))
+		                {
+                	        	//OPTIM
+	                        	atomicExch(&TypesOfFaces[i], OTHER_VISION);
+        		        }
+		        }
+			__syncthreads();
 				
+			if (threadIdx.x == 0)
+				if (TypesOfFaces[i] != OTHER_VISION) TypesOfFaces[i] = FIRST_VISION;
 
 //2150 for eleham.obj		
 //	if (i==2150) 	{
@@ -569,10 +576,75 @@ void cudaToCountFirstFaces(CalcVertex light, CalcMesh* mesh, float* ret)
 //			}
 
 		}
-    }
-if (i==0) *ret = 99;
+	}
+//if (i==0)
+
 //__syncthreads();
 }
+
+
+__global__
+void cudaToCountFirstFaces(CalcVertex light, CalcMesh* mesh, float* ret)
+{
+	ToCountFirstFaces(&light, mesh, mesh->TypesOfFaces);
+	*ret = 99;
+}
+
+
+
+__global__
+void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret)
+{
+        CalcVertex centroidFirst, centroidOther, temp;
+	integer iy, ix, j;
+        for (iy=blockIdx.y; iy < mesh->NumberOfFaces; iy+=gridDim.y)
+        {
+                if ((mesh->TypesOfFaces[iy] == FIRST_VISION)&&(mesh->Faces[iy].VertexCount == 3))
+                {
+                        GET_CENTROID(centroidFirst.x, centroidFirst.y, centroidFirst.z,
+                                ___XPointFrom(mesh->Faces + iy, 0), ___YPointFrom(mesh->Faces + iy, 0), ___ZPointFrom(mesh->Faces + iy, 0),
+                                ___XPointFrom(mesh->Faces + iy, 1), ___YPointFrom(mesh->Faces + iy, 1), ___ZPointFrom(mesh->Faces + iy, 1),
+                                ___XPointFrom(mesh->Faces + iy, 2), ___YPointFrom(mesh->Faces + iy, 2), ___ZPointFrom(mesh->Faces + iy, 2));
+
+                     
+			for (ix=blockIdx.x; ix < mesh->NumberOfFaces; ix+=gridDim.x)
+			{
+                                if ( (mesh->TypesOfFaces[ix] == OTHER_VISION) &&(mesh->Faces[ix].VertexCount == 3))
+                                {
+					GET_CENTROID(centroidOther.x, centroidOther.y, centroidOther.z,
+					___XPointFrom(mesh->Faces + ix, 0), ___YPointFrom(mesh->Faces + ix, 0), ___ZPointFrom(mesh->Faces + ix, 0),
+                                        ___XPointFrom(mesh->Faces + ix, 1), ___YPointFrom(mesh->Faces + ix, 1), ___ZPointFrom(mesh->Faces + ix, 1),
+                                        ___XPointFrom(mesh->Faces + ix, 2), ___YPointFrom(mesh->Faces + ix, 2), ___ZPointFrom(mesh->Faces + ix, 2));
+
+                                        temp = centroidFirst;
+                                        DECREASE_SEGMENT_TO_INTERVAL_3D(temp.x, temp.y, temp.z,
+                                                                        centroidOther.x, centroidOther.y, centroidOther.z);
+                                        DECREASE_SEGMENT_TO_INTERVAL_3D(centroidOther.x, centroidOther.y, centroidOther.z,
+                                                                        temp.x, temp.y, temp.z);
+					
+					__shared__ int flag;
+					flag = 0;
+                                        __syncthreads();
+					
+					for (j=threadIdx.x; ((j < mesh->NumberOfFaces) && (flag != 0)) ; j+=blockDim.x)
+                        		{
+                           			if(IsSegmentIntersectPolygon(&temp, &centroidOther, &mesh->Faces[j]))
+                                		{
+                                        		atomicExch(&flag, 1);
+                                		}
+                        		}
+                        		__syncthreads();
+
+                        		if (threadIdx.x == 0)
+                                		if (flag == 0) mesh->TypesOfFaces[ix] = SECOND_VISION;
+				}
+			}
+		}
+	}
+	*ret = 99;
+}
+
+
 
 
 //to count second faces ONLY AFTER first faces has been defined!
@@ -627,15 +699,15 @@ __host__ __device__
 
 
 
-
+//model M x N - out grid.
 __global__
-void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret)
+void OLDcudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret)
 {
 	//just only for triangle-polygons now
 	integer i,j;
 	CalcVertex centroidFirst, centroidOther, temp;
 	//for {all first_vision face polygons}
-	//for (i=0; i < mesh->NumberOfFaces; i++)
+	//for (i=blockIdx.x; i < mesh->NumberOfFaces; i+=gridDim.x)
 	i = threadIdx.x + blockIdx.x * blockDim.x;
 	if (i < mesh->NumberOfFaces)
 	{
@@ -681,12 +753,78 @@ void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret)
 
 
 
+/*
+__host__
+void cudaToCountSecondAndDoubleFaces2(CalcMesh *mesh)
+{
+        //just only for triangle-polygons now
+        integer i,j;
+        CalcVertex centroidFirst, centroidOther, temp;
+        //for {all first_vision face polygons}
+        for (i=0; i < mesh->NumberOfFaces; i++)
+        //i = threadIdx.x + blockIdx.x * blockDim.x;
+        {
+		printf("#%i\n", i);
+                if ((mesh->TypesOfFaces[i] == FIRST_VISION)&&(mesh->Faces[i].VertexCount == 3))
+                {
+                        GET_CENTROID(centroidFirst.x, centroidFirst.y, centroidFirst.z,
+                                ___XPointFrom(mesh->Faces + i, 0), ___YPointFrom(mesh->Faces + i, 0), ___ZPointFrom(mesh->Faces + i, 0),
+                                ___XPointFrom(mesh->Faces + i, 1), ___YPointFrom(mesh->Faces + i, 1), ___ZPointFrom(mesh->Faces + i, 1),
+                                ___XPointFrom(mesh->Faces + i, 2), ___YPointFrom(mesh->Faces + i, 2), ___ZPointFrom(mesh->Faces + i, 2));
+
+			
+			cudaToCountFirstFaces<<< 65500, 365>>>(centroidFirst, mesh, );
+			
+
+
+
+
+
+	 	//fo {all other_vision face polygons}
+                        for (j=0; j < mesh->NumberOfFaces; j++)
+                                if ( ( (mesh->TypesOfFaces[j] == OTHER_VISION) || (mesh->TypesOfFaces[j] == FIRST_VISION) )
+                                        &&(mesh->Faces[j].VertexCount == 3))
+                                        {
+                                                GET_CENTROID(centroidOther.x, centroidOther.y, centroidOther.z,
+                                                        ___XPointFrom(mesh->Faces + j, 0), ___YPointFrom(mesh->Faces + j, 0), ___ZPointFrom(mesh->Faces + j, 0),
+                                                        ___XPointFrom(mesh->Faces + j, 1), ___YPointFrom(mesh->Faces + j, 1), ___ZPointFrom(mesh->Faces + j, 1),
+                                                        ___XPointFrom(mesh->Faces + j, 2), ___YPointFrom(mesh->Faces + j, 2), ___ZPointFrom(mesh->Faces + j, 2));
+
+                                                temp = centroidFirst;
+
+DECREASE_SEGMENT_TO_INTERVAL_3D(temp.x, temp.y, temp.z,
+                                                                        centroidOther.x, centroidOther.y, centroidOther.z);
+                                                DECREASE_SEGMENT_TO_INTERVAL_3D(centroidOther.x, centroidOther.y, centroidOther.z,
+                                                                        temp.x, temp.y, temp.z);
+
+                                                if (IsSegmentIntersectModel(&temp, &centroidOther, mesh) == 0)
+                                                        if (mesh->TypesOfFaces[j] == FIRST_VISION)
+                                                                mesh->TypesOfFaces[j] = DOUBLE_VISION;
+                                                        else mesh->TypesOfFaces[j] = SECOND_VISION;
+
+                                        }
+                }
+
+
+
+        }
+        *ret = 99;
+}
+*/
+
+
+
+
+
+
 __global__
 void cudaToCountSphere(CalcMesh *mesh, float *ret)
 {
-        integer thread = threadIdx.x + blockIdx.x * blockDim.x;
-        if (thread < mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1))
-        {
+        integer blockX, blockY, thread;
+	//thread = threadIdx.x + blockIdx.x * blockDim.
+        //if (thread < mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1))
+        for (blockY = blockIdx.y; blockY < mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1); blockY+=gridDim.y )
+	{
 		integer	  i = thread / mesh->NumberSphereDetalisation + 1,	//for i=1 to i++<N
 			  j = thread % mesh->NumberSphereDetalisation,		//for j=0 to j++<N
 			  i_ = i-1,
@@ -707,7 +845,7 @@ void cudaToCountSphere(CalcMesh *mesh, float *ret)
 			sincos(jalpha, &sinjalpha, &cosjalpha);
 			sincos(j_alpha, &sinj_alpha, &cosj_alpha);
 			
-		CalcVertex centroid; //the sphere polygon center
+		CalcVertex centroid, centroidOther; //the sphere polygon center
 		GET_CENTROID_4(	centroid.x, centroid.y, centroid.z, 
 				r*cosiphi*cosjalpha, r*cosiphi*sinjalpha, r*siniphi,
 				r*cosi_phi*cosjalpha, r*cosi_phi*sinjalpha, r*sini_phi,
@@ -717,9 +855,46 @@ void cudaToCountSphere(CalcMesh *mesh, float *ret)
 		//change this
 		//ToCountFirstFaces(&centroid, mesh);	
 		
-		mesh->SpherePolygonRadiosity[thread] += 0.5f;
-		
-		
+		for (blockX=blockIdx.x; blockX < mesh->NumberOfFaces; blockX+=gridDim.x)
+                {
+			if ( ((mesh->TypesOfFaces[blockX] == FIRST_VISION)||(mesh->TypesOfFaces[blockX] == SECOND_VISION)) &&(mesh->Faces[blockX].VertexCount == 3))
+                        {
+				GET_CENTROID(centroidOther.x, centroidOther.y, centroidOther.z,
+                                        ___XPointFrom(mesh->Faces + blockX, 0), ___YPointFrom(mesh->Faces + blockX, 0), ___ZPointFrom(mesh->Faces + blockX, 0),
+                                        ___XPointFrom(mesh->Faces + blockX, 1), ___YPointFrom(mesh->Faces + blockX, 1), ___ZPointFrom(mesh->Faces + blockX, 1),
+                                        ___XPointFrom(mesh->Faces + blockX, 2), ___YPointFrom(mesh->Faces + blockX, 2), ___ZPointFrom(mesh->Faces + blockX, 2));
+
+				
+				DECREASE_SEGMENT_TO_INTERVAL_3D(centroidOther.x, centroidOther.y, centroidOther.z,     centroid.x, centroid.y, centroid.z);
+                                __shared__ int flag;
+                                flag = 0;
+                                __syncthreads();
+
+                                for (thread=threadIdx.x; ((thread < mesh->NumberOfFaces) && (flag != 0)) ; thread+=blockDim.x)
+				{
+					if(IsSegmentIntersectPolygon(&centroid, &centroidOther, &mesh->Faces[thread]))
+                                        {
+						atomicExch(&flag, 1);
+                                        }
+                                }
+				__syncthreads();
+
+				if (threadIdx.x == 0)
+				{
+					if (flag == 0)
+					{
+						if (mesh->TypesOfFaces[blockX] == FIRST_VISION) 
+						{
+							mesh->SpherePolygonRadiosity[blockY] += mesh->Faces[blockX].Square;
+						}
+						else
+						{
+							mesh->SpherePolygonRadiosity[blockY] += 0.0 * mesh->Faces[blockX].Square;
+						}
+					}
+				}	
+			}
+		}	
 	}
 	*ret = 99;
 }
@@ -809,8 +984,8 @@ void GPU_example(CalcMesh* mesh)
 	//after this we need to change all temp_mesh.Faces[ i ].VertexArray to temp_mesh.VertexArray.
 	//we are do it in the __global__ function
 
-	assert( cudaMalloc((void **)&temp_mesh.TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned char)) == cudaSuccess );
-	assert( cudaMemcpy(temp_mesh.TypesOfFaces, mesh->TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned char), cudaMemcpyHostToDevice) == cudaSuccess );
+	assert( cudaMalloc((void **)&temp_mesh.TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned int)) == cudaSuccess );
+	assert( cudaMemcpy(temp_mesh.TypesOfFaces, mesh->TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess );
 
 	assert( cudaMalloc((void **)&temp_mesh.Lights, sizeof(CalcVertex)) == cudaSuccess );
 	assert( cudaMemcpy(temp_mesh.Lights, mesh->Lights, sizeof(CalcVertex), cudaMemcpyHostToDevice) == cudaSuccess );	
@@ -857,7 +1032,7 @@ void GPU_example(CalcMesh* mesh)
 
 	{
 		printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
-		cudaToCountFirstFaces<<< 60000, prop.maxThreadsPerBlock-150>>>(mesh->Lights[0], cuda_mesh, temp);
+		cudaToCountFirstFaces<<< 65500, 365>>>(mesh->Lights[0], cuda_mesh, temp);
 		//for (integer face = 0; face < 1000; face++){
 		//cudaToCountFirstFaces<<< 1, 1>>>(face, light, cuda_mesh, temp);
 		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));	
@@ -866,20 +1041,23 @@ void GPU_example(CalcMesh* mesh)
 		//}
 		
 		printf("DEBUG: cudaToCountSecondAndDoubleFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
-		cudaToCountSecondAndDoubleFaces<<< 50000, prop.maxThreadsPerBlock-150>>>(cuda_mesh, temp);
+		dim3 blocks(1000,1000);
+		cudaToCountSecondAndDoubleFaces<<< blocks, 320>>>(cuda_mesh, temp);
 		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("GPU test 2:%f \n", temp2);
 		
 		printf("DEBUG: cudaToCountSphere() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
-                cudaToCountSphere<<< 50000, prop.maxThreadsPerBlock-150>>>(cuda_mesh, temp);
+                dim3 blocks2(32, 1000);
+		cudaToCountSphere<<< blocks2, 320>>>(cuda_mesh, temp);
+		//prop.maxThreadsPerBlock
                 printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
                 cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
                 printf("GPU test 3:%f \n", temp2);	
 		
 	}
 
-	cudaMemcpy(mesh->TypesOfFaces, temp_mesh.TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	cudaMemcpy(mesh->TypesOfFaces, temp_mesh.TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned int), cudaMemcpyDeviceToHost);
 	cudaMemcpy(mesh->SpherePolygonRadiosity, temp_mesh.SpherePolygonRadiosity, mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1)*sizeof(real), cudaMemcpyDeviceToHost);
 	
 //DEBUG

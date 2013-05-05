@@ -144,7 +144,7 @@ typedef struct
 	integer			 NumberOfVertices,	/*	The number of vertices in the m_aVertexArray array, equal ObjMesh.m_iNumberOfVertices*/
 					 NumberOfFaces;		/*	The number of faces in the m_aFaces array, equal ObjMesh.m_iNumberOfFaces */
 
-	unsigned char	*TypesOfFaces;		/*FIRST or SECOND or OTHER types*/
+	unsigned int	*TypesOfFaces;		/*FIRST or SECOND or OTHER types*/
 	CalcVertex*	Lights;
 	real		*SpherePolygonRadiosity;
 	integer		NumberSphereDetalisation;
