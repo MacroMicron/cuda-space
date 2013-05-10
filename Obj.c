@@ -89,7 +89,7 @@ ObjMesh *MakeOBJ()
 	g_LinkedListHead			= pMesh;
 	
 	
-	ChangeNumberSphereDetalisation(32, pMesh->m_iMeshID);		
+	ChangeNumberSphereDetalisation(320, pMesh->m_iMeshID);		
 	//it is like pMesh->m_iNumberSphereDetalisation = 256;
 	//there is restrict on this number: i think only 2^n
 	
@@ -126,7 +126,7 @@ void ChangeNumberSphereDetalisation(unsigned int SphereDetalisation, ObjFile id)
 			for (i=0; i < SphereDetalisation*(SphereDetalisation-1); i++)
 			{
 				pMesh->m_aSpherePolygonRadiosity[i] = 0.0;
-				if (i%2) pMesh->m_aSpherePolygonRadiosity[i]+=0.5;
+				//if (i%2) pMesh->m_aSpherePolygonRadiosity[i]+=0.5;
 			}
 			pMesh->m_aSphereVertexArray = (ObjVertex*) calloc(SphereDetalisation*SphereDetalisation, sizeof(ObjVertex));
 			assert(pMesh->m_aSphereVertexArray);

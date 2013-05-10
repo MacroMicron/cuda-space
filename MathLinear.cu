@@ -25,6 +25,16 @@
 #define PRECISION 0.1
 
 
+//magic constant 
+#define TINY 1.0e-40
+#define a(i,j) a[(i)*MAT1+(j)]
+#define GO 1
+#define NOGO 0
+
+
+#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
+#define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
+
 #define SGN(a)		( (a)>0 ? 1 : ((a)<0?-1:0) )
 
 #define Z_BETWEEN_X_AND_Y(z,x,y)	((x)>(y) ? ((z)>=(y))&&((z)<=(x)) : ((z)<=(y))&&((z)>=(x)))
@@ -104,6 +114,123 @@
 //interval ro between A and B
 #define INTERVAL_BETWEEN_A_AND_B(ax,ay,az, bx,by,bz)										\
 								 sqrt(   ((ax)-(bx))*((ax)-(bx)) +  ((ay)-(by))*((ay)-(by)) +  ((az)-(bz))*((az)-(bz))  )
+
+
+#define MAT1 1148
+
+
+//for Gauss Matrix Solver
+__device__ void d_pivot_decomp(float *a, int *p, int *q){
+    int i,j,k;
+    int n=MAT1;
+    int pi,pj,tmp;
+    float max;
+    float ftmp;
+    for (k=0;k<n;k++){
+        pi=-1,pj=-1,max=0.0;
+        //find pivot in submatrix a(k:n,k:n)
+        for (i=k;i<n;i++) {
+            for (j=k;j<n;j++) {
+                if (fabs(a(i,j))>max){
+                    max = fabs(a(i,j));
+                    pi=i;
+                    pj=j;
+                }
+            }
+        }
+        //Swap Row
+        tmp=p[k];
+        p[k]=p[pi];
+        p[pi]=tmp;
+        for (j=0;j<n;j++){
+            ftmp=a(k,j);
+            a(k,j)=a(pi,j);
+            a(pi,j)=ftmp;
+        }
+        //Swap Col
+        tmp=q[k];
+        q[k]=q[pj];
+        q[pj]=tmp;
+        for (i=0;i<n;i++){
+            ftmp=a(i,k);
+            a(i,k)=a(i,pj);
+            a(i,pj)=ftmp;
+        }
+        //END PIVOT
+ 
+        //check pivot size and decompose
+        if ((fabs(a(k,k))>TINY)){
+            for (i=k+1;i<n;i++){
+                //Column normalisation
+                ftmp=a(i,k)/=a(k,k);
+                for (j=k+1;j<n;j++){
+                    //a(ik)*a(kj) subtracted from lower right submatrix elements
+                    a(i,j)-=(ftmp*a(k,j));
+                }
+            }
+        }
+        //END DECOMPOSE
+    }
+}
+ 
+
+//for gauss matrix solver 
+__device__ void d_solve(float *a, float *x, int *p, int *q){
+    //forward substitution; see  Golub, Van Loan 96
+    //And see http://www.cs.rutgers.edu/~richter/cs510/completePivoting.pdf
+    int i,ii=0,j;
+    float ftmp;
+    float xtmp[MAT1];
+    //Swap rows (x=Px)
+    for (i=0; i<MAT1; i++){
+        xtmp[i]=x[p[i]]; //value that should be here
+    }
+    //Lx=x
+    for (i=0;i<MAT1;i++){
+        ftmp=xtmp[i];
+        if (ii != 0)
+            for (j=ii-1;j<i;j++)
+                ftmp-=a(i,j)*xtmp[j];
+        else
+            if (ftmp!=0.0)
+                ii=i+1;
+        xtmp[i]=ftmp;
+    }
+    //backward substitution
+    //partially taken from Sourcebook on Parallel Computing p577
+    //solves Uy=z
+    xtmp[MAT1-1]/=a(MAT1-1,MAT1-1);
+    for (i=MAT1-2;i>=0;i--){
+        ftmp=xtmp[i];
+        for (j=i+1;j<MAT1;j++){
+            ftmp-=a(i,j)*xtmp[j];
+        }
+        xtmp[i]=(ftmp)/a(i,i);
+    }
+    for (i=0;i<MAT1;i++)
+ 
+    //Last bit
+    //solves x=Qy
+    for (i=0;i<MAT1;i++){
+        x[i]=xtmp[q[i]];
+    }
+}
+ 
+//Gauss Matix Solver
+__global__ void GaussMatrixSolve(float *A, float *B, int max){
+  //Each thread solves the A[id]x[id]=b[id] problem
+  int id= blockDim.x*blockIdx.x + threadIdx.x;
+  int p_pivot[MAT1],q_pivot[MAT1];
+  //if ((GO==1) && (id < max)){
+    for (int i=0;i<MAT1;i++) {
+        p_pivot[i]=q_pivot[i]=i;
+    }
+ 
+    d_pivot_decomp(&A[id*MAT1*MAT1],&p_pivot[0],&q_pivot[0]);
+    d_solve(&A[id*MAT1*MAT1],&B[id*MAT1],&p_pivot[0],&q_pivot[0]);
+ // }
+}
+
 
 
 //return true if segments intersected
@@ -591,7 +718,7 @@ void cudaToCountFirstFaces(CalcVertex light, CalcMesh* mesh, float* ret)
 }
 
 
-
+//thisway
 __global__
 void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret)
 {
@@ -818,7 +945,7 @@ DECREASE_SEGMENT_TO_INTERVAL_3D(temp.x, temp.y, temp.z,
 
 
 __global__
-void cudaToCountSphere(CalcMesh *mesh, float *ret)
+void cudaToCountSphere(CalcMesh *mesh, real* d_x, float *ret)
 {
         integer blockX, blockY, thread;
 	//thread = threadIdx.x + blockIdx.x * blockDim.
@@ -885,16 +1012,17 @@ void cudaToCountSphere(CalcMesh *mesh, float *ret)
 					{
 						if (mesh->TypesOfFaces[blockX] == FIRST_VISION) 
 						{
-							mesh->SpherePolygonRadiosity[blockY] += mesh->Faces[blockX].Square;
+							mesh->SpherePolygonRadiosity[blockY] += mesh->Faces[blockX].Square; //d_x[blockX]
 						}
 						else
 						{
-							mesh->SpherePolygonRadiosity[blockY] += 0.0 * mesh->Faces[blockX].Square;
+							//mesh->SpherePolygonRadiosity[blockY] += 0.0 * mesh->Faces[blockX].Square;
 						}
 					}
 				}	
 			}
-		}	
+		}
+		mesh->SpherePolygonRadiosity[blockY]  /= 10.0f;	
 	}
 	*ret = 99;
 }
@@ -949,6 +1077,81 @@ __global__ void GPU_tester(CalcMesh* cuda_mesh, float* ret, CalcVertex *light)
 }
 
 
+//thisway
+__global__ void MatrixInit(CalcMesh* mesh, real* matrix, real* b, float *ret)
+{
+        CalcVertex centroidFirst, centroidOther, temp;
+        integer iy, ix, j;
+	const float ro = 0.5;
+        for (iy=blockIdx.y; iy < mesh->NumberOfFaces; iy+=gridDim.y)
+        {
+                if (mesh->Faces[iy].VertexCount == 3)
+                {
+                        GET_CENTROID(centroidFirst.x, centroidFirst.y, centroidFirst.z,
+                                ___XPointFrom(mesh->Faces + iy, 0), ___YPointFrom(mesh->Faces + iy, 0), ___ZPointFrom(mesh->Faces + iy, 0),
+                                ___XPointFrom(mesh->Faces + iy, 1), ___YPointFrom(mesh->Faces + iy, 1), ___ZPointFrom(mesh->Faces + iy, 1),
+                                ___XPointFrom(mesh->Faces + iy, 2), ___YPointFrom(mesh->Faces + iy, 2), ___ZPointFrom(mesh->Faces + iy, 2));
+
+			if (threadIdx.x == 0)
+			{
+				if (mesh->TypesOfFaces[iy] == FIRST_VISION)
+                       		{
+					 b[iy] = -1.0;
+				}
+		                else
+				{
+					 b[iy] = 0.0;
+				}
+			}
+			
+			
+                        for (ix=blockIdx.x; ix < mesh->NumberOfFaces; ix+=gridDim.x)
+                        {
+                                if (mesh->Faces[ix].VertexCount == 3)
+                                {
+                                        GET_CENTROID(centroidOther.x, centroidOther.y, centroidOther.z,
+                                        ___XPointFrom(mesh->Faces + ix, 0), ___YPointFrom(mesh->Faces + ix, 0), ___ZPointFrom(mesh->Faces + ix, 0),
+                                        ___XPointFrom(mesh->Faces + ix, 1), ___YPointFrom(mesh->Faces + ix, 1), ___ZPointFrom(mesh->Faces + ix, 1),
+                                        ___XPointFrom(mesh->Faces + ix, 2), ___YPointFrom(mesh->Faces + ix, 2), ___ZPointFrom(mesh->Faces + ix, 2));
+
+                                        temp = centroidFirst;
+                                        DECREASE_SEGMENT_TO_INTERVAL_3D(temp.x, temp.y, temp.z,
+                                                                        centroidOther.x, centroidOther.y, centroidOther.z);
+                                        DECREASE_SEGMENT_TO_INTERVAL_3D(centroidOther.x, centroidOther.y, centroidOther.z,
+                                                                        temp.x, temp.y, temp.z);
+
+                                        __shared__ int flag;
+                                        flag = 0;
+                                        __syncthreads();
+
+                                        for (j=threadIdx.x; ((j < mesh->NumberOfFaces) && (flag != 0)) ; j+=blockDim.x)
+                                        {
+                                                if(IsSegmentIntersectPolygon(&temp, &centroidOther, &mesh->Faces[j]))
+                                                {
+                                                        atomicExch(&flag, 1);
+                                                }
+                                        }
+                                        __syncthreads();
+
+                                        if (threadIdx.x == 0)
+					{
+                                                if (flag == 0) 
+						{
+							matrix[iy*mesh->NumberOfFaces+ix] = 1.0;
+							matrix[iy*mesh->NumberOfFaces+ix] *= ro; 
+						}
+						else matrix[iy*mesh->NumberOfFaces+ix] = 0.0;
+						if (ix == iy) matrix[iy*mesh->NumberOfFaces+ix] = -1.0;
+					}
+		
+                                }
+                        }
+                }
+        }
+*ret = 99;
+}
+
+
 void GPU_example(CalcMesh* mesh)
 {
 	//create cudaCalcMesh on GPU
@@ -959,6 +1162,11 @@ void GPU_example(CalcMesh* mesh)
 	//\F1\E4\E5\EB\E0\F2\FC \ED\EE\F0\EC\E0\EB\FC\ED\F3\FE \EE\E1\F0\E0\E1\EE\F2\EA\F3 \EE\F8\E8\E1\EE\EA
 
 	CalcMesh *cuda_mesh, temp_mesh;
+
+real* d_A;
+  real* d_b;
+  //real* d_x;
+
 
 	/*CalcVertex temp_temp, *dev_temp;
 	temp_temp.x = 1.1;
@@ -1033,12 +1241,9 @@ void GPU_example(CalcMesh* mesh)
 	{
 		printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
 		cudaToCountFirstFaces<<< 65500, 365>>>(mesh->Lights[0], cuda_mesh, temp);
-		//for (integer face = 0; face < 1000; face++){
-		//cudaToCountFirstFaces<<< 1, 1>>>(face, light, cuda_mesh, temp);
 		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));	
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("DEBUG: it's resulsts %f \n", temp2);
-		//}
 		
 		printf("DEBUG: cudaToCountSecondAndDoubleFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
 		dim3 blocks(1000,1000);
@@ -1047,9 +1252,155 @@ void GPU_example(CalcMesh* mesh)
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("GPU test 2:%f \n", temp2);
 		
+		{//radiosity http://pastebin.com/jEvJDmdt
+  
+  unsigned int matrixcount=1;
+  //const unsigned int matsize = MAT2*matrixcount;
+  //const unsigned int vecsize = MAT1*matrixcount;
+  //float a[]={2,6,-4,6,10, 12,4,8,6,1, 4,3,64,432,3, 2,0,-2,-2,3333, 4,0,-1,3,9};
+  //const float exampleA[]={7,3,-11,-6,7,10,-11,2,-2};
+  //const float exampleA[]={4,3,6,3};
+  //const float b[]={5,7,8,23,0};
+  //unsigned int MAT1 = mesh->NumberOfFaces;
+  unsigned int MAT2 = MAT1*MAT1;
+  //const float exampleB[]={4,5};
+
+  //memory allocations
+  //float* h_A ;//= (float*)malloc(sizeof(float)*matsize);
+  //float* h_b ;//= (float*)malloc(sizeof(float)*vecsize);
+  //float* h_x ;//= (float*)malloc(sizeof(float)*vecsize);
+
+  cudaMalloc(&d_A, sizeof(real)*MAT2);
+  cudaMalloc(&d_b, sizeof(real)*MAT1);
+  //cudaMalloc(&d_x, sizeof(real)*MAT1);
+
+ // printf("Mallocd\n");
+
+  //fill matrix and vector with stuff
+  /*for (unsigned int i = 0;i<matrixcount;i++){
+    printf("\n%d\n",i);
+    for (unsigned int j = 0; j < MAT1; j++){
+      h_b[(i*MAT1)+j]=b[j];
+      h_x[(i*MAT1)+j]=-1;
+      printf("%.0f,",h_b[(i*MAT1)+j]);
+      printf("\n%d:",j);
+      for (unsigned int k=0; k < MAT1; k++){
+        printf("%d,",k);
+        h_A[(i*MAT2)+(j*MAT1)+k]=a(j,k);
+      }
+    }
+    puts("\n");
+  }
+ */
+/*  const float ro = 0.5;
+ 
+  for (unsigned int i=0; i<matrixcount; i++)
+  {
+	for (unsigned int j = 0; j < MAT1; j++)
+	{
+		if (mesh->TypesOfFaces[(i*MAT1)+j] == FIRST_VISION)
+			h_b[(i*MAT1)+j] = -1.0;
+		else h_b[(i*MAT1)+j] = 0.0;
+		for (unsigned int k = 0; k < MAT1; k++)
+		{
+			if (j==k) h_A[(i*MAT2)+(j*MAT1)+k]=-1.0;
+			else 
+			{
+				h_A[(i*MAT2)+(j*MAT1)+k] = ro*a(j,k);
+			}
+		}
+	}
+  }
+*/
+  
+  //printf("Generated\n");
+
+
+  //cudaMemcpy(d_A, h_A, sizeof(float)*matsize, cudaMemcpyHostToDevice);
+  //cudaMemcpy(d_b, h_b, sizeof(float)*vecsize, cudaMemcpyHostToDevice);
+  //cudaMemcpy(d_x, h_x, sizeof(float)*vecsize, cudaMemcpyHostToDevice);
+
+  /*printf("Copied\n");
+
+  for (unsigned int i=0; i<matrixcount; i++){
+    printf("\n%d:x:A|B",i);
+    //printf("%.3lf|",h_x[i*MAT1]);
+    for (unsigned int j=0; j<MAT1; j++){
+      printf("\n%.3lf:",h_x[i*MAT1+j]);
+      for (unsigned int k=0;k<MAT1; k++){
+        printf("%.1lf,",h_A[(i*MAT2)+(j*MAT1)+k]);
+      }
+      printf("|%.3lf",h_b[i*MAT1+j]);
+    }
+  }
+  puts("\n");
+*/
+
+
+                printf("DEBUG: cudaMatrixInit() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
+                dim3 blocks3(32, 1000);
+                //MatrixInit<<< blocks3, 320>>>(cuda_mesh, d_A, d_b, temp);
+                //prop.maxThreadsPerBlock
+		cudaDeviceSynchronize();
+                printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
+		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
+                printf("GPU test 4:%f \n", temp2);
+		
+
+
+  //Execute
+//  cudaEvent_t evt_start, evt_stop;
+//  cudaEventCreate(&evt_start);
+//  cudaEventCreate(&evt_stop);
+//  cudaEventRecord(evt_start,0);
+                printf("DEBUG: cudaGaussSolver() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
+                dim3 blocks4(32, 1000);
+                //GaussMatrixSolve<<< 65000, 1>>>(d_A, d_b, matrixcount);;
+                //prop.maxThreadsPerBlock
+                cudaDeviceSynchronize();
+                printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
+                cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
+                printf("GPU test 4:%f \n", temp2);
+
+
+//  GaussMatrixSolve<<<1000, threadsPerBlock>>>(d_A, d_b, matrixcount);
+//  cudaDeviceSynchronize();
+
+//TIME THIS:			
+  //cudaEventRecord(evt_stop, 0);
+  //cudaEventSynchronize(evt_stop);
+  //float total_time;
+  //cudaEventElapsedTime(&total_time, evt_start, evt_stop);
+  //cudaMemcpy(h_A,d_A, sizeof(float)*matsize, cudaMemcpyDeviceToHost);
+  //cudaMemcpy(h_x,d_b, sizeof(float)*vecsize, cudaMemcpyDeviceToHost);
+
+  // print timing results
+  //float one_time = total_time * 1e-3;
+/*
+  printf("time: %g s\n", one_time);
+  for (unsigned int i=0; i<matrixcount; i++){
+    printf("\n%d:x:A",i);
+    //printf("%.3lf|",h_x[i*MAT1]);
+    for (unsigned int j=0; j<MAT1; j++){
+      printf("\n%.3lf:",h_x[i*MAT1+j]);
+      for (unsigned int k=0;k<MAT1; k++){
+        printf("%.1lf,",h_A[(i*MAT2)+(j*MAT1)+k]);
+      }
+    }
+  }
+  puts("\n");
+			
+  cudaEventDestroy(evt_start);
+  cudaEventDestroy(evt_stop);
+*/
+  //free(h_A);
+  //free(h_b);
+  //free(h_x);
+		}
+
 		printf("DEBUG: cudaToCountSphere() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
                 dim3 blocks2(32, 1000);
-		cudaToCountSphere<<< blocks2, 320>>>(cuda_mesh, temp);
+		cudaToCountSphere<<< blocks2, 320>>>(cuda_mesh, d_b, temp);
 		//prop.maxThreadsPerBlock
                 printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
                 cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
@@ -1077,6 +1428,14 @@ BUG Ham		point2.x = -34.475559;
 	}
 
 	int j;
+
+
+	for (j=0; j < mesh->NumberOfFaces; j++)
+		printf("%f\n", mesh->Faces[j].Square);
+	
+  cudaFree(d_A); 
+  cudaFree(d_b);
+  //cudaFree(d_x);
 	//from 2000 to 2200 - good faces for experiments in  ham
 	//for (j=800; j<1000; j++)		
 	//mesh->TypesOfFaces[2150] = 2;
