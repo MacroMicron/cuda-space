@@ -1,0 +1,146 @@
+\section*{Математическая постановка задачи}
+
+
+\begin{figure}
+  \begin{center}
+    \begin{picture}(180,180)(-90,-90)
+      \thinlines
+      \put(-80,-40){\vector(1,0){160}}
+      \put(-40,-80){\vector(0,1){160}}
+      %\put(-49,-51){\textsl{0}}
+      %\put(37,-51){\textsl{1}}
+      %\put(-49,30){\textsl{1}}
+      \put(80,-51){\textsl{x}}
+      \put(-49,80){\textsl{y}}
+      \thicklines
+      \put(-40,-40){\line(1,0){80}}
+      \put(40,-40){\line(0,1){80}}
+      \put(60,40){\line(-1,0){120}}
+      \put(60,60){\line(-1,0){120}}
+      \put(-40,40){\line(0,-1){80}}
+      \put(-60,49.7){\circle{19.5}}
+      \put( 60,49.7){\circle{19.5}}
+      \put(-10,33){\vector(1,0){30}}
+      \put(10,67){\vector(-1,0){30}}
+      \thinlines
+      \multiput(-40,-40)(0,7){12}{\line(-1,-1){10}}
+      \multiput(-40,-40)(7,0){14}{\line(-1,-1){10}}
+      \multiput( 40,-44)(0,7){11}{\line(1,1){10}}
+      \multiput(-47.5,40)(5,0){20}{\line(0,1){5}}
+      \multiput(-47.5,60)(5,0){20}{\line(0,-1){5}}
+      \put(53,43){\line(1,1){14}}
+      \put(53,57){\line(1,-1){14}}
+      \put(-53,43){\line(-1,1){14}}
+      \put(-53,57){\line(-1,-1){14}}
+    \end{picture}
+  \end{center}
+  \caption{Каверна с подвижной крышкой}
+  \label{pic2D}
+\end{figure}
+
+Ставится трехмерная (3-D) задача о расчете поля скорости $ \vec v(t) $ в каверне с подвижной крышкой $ \Theta $ . Каверна имеет форму траншеи, бесконечно длинной, с квадратным поперечный сечением $\Theta \times \mathbb{R} \text{, где } \Theta = (0,1) \times (0,1) $. 
+Жидкости передается движение крышки $ \Gamma_1 \times \mathbb{R} \text{, где } \Gamma_1 = (0,1) \times {1} $. 
+Крышка движется равномерно со скорость $ \vec{v}_0 = (1,0,0) $. Схематически, каверна изображена 
+на рисунке \ref{pic2D}. 
+Считается, что жидкость вязкая, ньютоновская, несжимаемая, изотермическая, и описывается системой
+уравнений Навье-Стокса.
+\begin{gather}
+  \nabla \cdot \vec v = 0 \label{3D_first}\\
+  \frac{\partial \vec v}{\partial t} = \vec v \times \vec \omega - \nabla p - 
+  \nu ( \nabla \times \vec \omega ), \text{при } \vec x \in \Theta \times \mathbb{R}\\
+  \vec v = (1,0,0), \text{при } \vec x \in \Gamma_1 \times \mathbb{R} \\
+  \vec v = (0,0,0), \text{при } \vec x \in \Gamma_2 \times \mathbb{R} \\
+  \vec v (0) = \vec v _0 \label{3D_last}
+\end{gather}
+
+Здесь $ \vec \omega = \nabla \times \vec v $ - завихренность, p - полное кинематическое давление,
+$ \nu = 1 / \Re $ - вязкость, $ \Re $ - число Рейнольдса, $ \Gamma_2 = \partial \Theta \setminus \Gamma_1 $ - боковые стенки и дно каверны, $ \partial \Theta = \Gamma_1 \cup \Gamma_2 $ - 
+граница области, $\vec v _0$ - начальное распредиление скорости. 
+
+Решене данной задачи \ref{3D_first}\,--\,\ref{3D_last} обозначим, как $ \{ \vec V(x,y,z,t), P(x,y,z,t) \} $~--- пара скорость-давление. Тогда $ \{ \vec V(x,y,z), P(x,y,z) \} $~--- стационарное решение этой задачи. 
+
+Хорошо известно, что при достаточно малых числах Рейнольдса в каверне устанавливается двумерное стационарное течение $$ 
+  \{\vec V(x,y,z), \vec P(x,y,z) \} = \{[\vec V(x,y), 0], [\vec P(x,y), 0]\}
+$$
+
+Здесь $\vec V(x,y)$~--- двумерный вектор скороси, $ \vec P(x,y) $~--- давление (скаляр), величины зависять только от двух переменных. Для их нахождения существует двумерная задача, аналогичная задаче \ref{3D_first}\,--\,\ref{3D_last}.
+\begin{gather}
+  \label{2D_first}
+  \nabla \cdot \vec v = 0 \\
+  \frac{\partial \vec v}{\partial t} = \vec v \times \vec \omega - \nabla p - 
+  \nu ( \nabla \times \vec \omega ), \text{при } \vec x \in \Theta \\
+  \vec v = (1,0), \text{при } \vec x \in \Gamma_1\\
+  \vec v = (0,0), \text{при } \vec x \in \Gamma_2\\
+  \vec v (0) = \vec v _0
+  \label{2D_last}
+\end{gather}
+
+Здесь вектор $ \vec \omega = \nabla \times \vec v = [0,0,\omega_z]$ имеет компоненту в напралении оси OZ (и только такую компоненту), но в уравнения $ \vec \omega $ входит только в составе выражения $ [(f_x,f_y),0] \times \vec \omega = [(f_y \omega_z, -f_x \omega_z), 0]$, результат которого~--- двумерные вектор, лежащий в плоскости OXY. Систему уравнений \ref{2D_first}\,--\,\ref{2D_last} можно считать двумерной. 
+
+Решение двумерной задачи \ref{2D_first}\,--\,\ref{2D_last} $\{ \vec V, P \}$ далее будет называться \textit{базовым течение}.
+
+Зададимся вопросом: Когда решение двумерной задачи будет решением и трехмерной задачи? Для того, что бы получить ответ на него, исследуем базовое течение на устойчивость к малым трехмерным возмущениям. 
+
+Через $\{ \vec v(x,y,z,t), p(x,y,z,t) \} $ обозначены трехмерные \textit{малые возмущения}, наложенные на базовое течение. 
+\begin{gather*}
+  \vec V(x,y,z,t) = \vec V(x,y) + \vec v(x,y,z,t) \\
+  P(x,y,z,t) = P(x,y) + p(x,y,z,t)
+\end{gather*}
+
+Новая система уравнений, линейная относительно неизвестных $ \vec v(x,y,z,t), p(x,y,z,t) $, получена путем подставления выражения в систему уравненй \ref{3D_first}\,--\,\ref{3D_last}, сокращения принебрежимо малого слагаемого $ \vec v \times \vec \omega $ и использования того факта, что  $\vec V(x,y), P(x,y) $~--- решение системы \ref{2D_first}\,--\,\ref{2D_last}.
+\begin{gather} 
+  \label{lin3D_first}
+  \nabla \cdot \vec v = 0\\
+  \frac{\partial \vec v}{\partial t} = \vec V \times \vec \omega + \vec v \times \vec \Omega - \nabla p - \nu ( \nabla \times \vec \omega ), \text{при } \vec x \in \Theta \times \mathbb{R}\\
+  \vec v = (0,0,0), \text{при } \vec x \in \partial \Theta \times \mathbb{R} \\
+  \vec v (0) = \vec v _0 \label{lin3D_last}
+\end{gather}
+
+Здесь $\vec V = \vec V(x,y) $~--- базовое течение, $ \vec \omega = \nabla \times \vec v $, $ \vec \Omega = \nabla \times \vec V $~--- завихренность малых возмущений и базового течения, соответственно, $\vec v _0$~--- распредиление малых возмущений в начальный момент времени t=0. 
+
+Над системой уравнений \ref{lin3D_first}\,--\,\ref{lin3D_last} можно выполнить преобразование Фурье вдоль оси OZ и перейти от переменной z к воновому числу $\alpha$.
+
+Функция, над которой было выполненл преобразование фурье, обозначены соответствующими буквами готического алфавита. Если f(x,y,z)~--- некоторая функция от трех переменных, тогда $ \mathfrak{f}(x,y,\alpha) $~--- соответствующая ей, преобразованная функция.
+$$
+ \mathfrak{f}(x_0,y_0,\alpha) = \int_\mathbb{R} f(x_0,y_0,z) e^{-i\alpha z} dz 
+$$
+
+Если считать, что $\vec v = (v_x, v_y, v_z)$, $\vec V = (V_x, V_y)$, $\vec \Omega = (0, 0, \Omega_z)$, то в скалярном виде преобразованную систему можно записать так
+\begin{gather} 
+  \label{scalar3D_first}
+ \frac{\partial \hat v_x}{\partial x} + \frac{\partial \hat v_y}{\partial y} + i\alpha \hat v_z= 0\\
+% 
+ \frac{\partial \hat v_x}{\partial t} = \vec V \times \vec \omega + \vec v \times \vec \Omega - \nabla p - \nu ( \nabla \times \vec \omega ), \text{при } \vec x \in \Theta \times \mathbb{R}\\
+% 
+ \frac{\partial \vec v}{\partial t} = \vec V \times \vec \omega + \vec v \times \vec \Omega - \nabla p - \nu ( \nabla \times \vec \omega ), \text{при } \vec x \in \Theta \times \mathbb{R}\\
+% 
+ \frac{\partial \vec v}{\partial t} = \vec V \times \vec \omega + \vec v \times \vec \Omega - \nabla p - \nu ( \nabla \times \vec \omega ), \text{при } \vec x \in \Theta \times \mathbb{R}\\
+% 
+ \vec v = (0,0,0), \text{при } \vec x \in \partial \Theta \times \mathbb{R} \\
+ \vec v (0) = \vec v _0 
+  \label{scalar3D_last}
+\end{gather}
+
+
+
+
+
+
+
+Можно записать и в векторном виде
+Так же, введены следующие обозначения для некоторых линейных операторов.
+$$
+  \nabla_\alpha = (\frac{\partial}{\partial x},\frac{\partial}{\partial y},-\alpha I)\text{,\qquad} 
+  \nabla_\alpha^* = (\frac{\partial}{\partial x},\frac{\partial}{\partial y},\alpha I) 
+$$
+
+В таких обозначения система уравнений \ref{lin3D_first}\,--\,\ref{lin3D_last}, над которой было выполнено преобразование фурье, имеет вид
+\begin{gather} 
+  \label{ft3D_first}
+  \nabla_\alpha^* \cdot  \mathfrak{\vec v} = 0\\
+  \frac{\partial \mathfrak{\vec v}}{\partial t} = \vec V \times \mathfrak{\vec \omega} + \mathfrak{\vec v} \times \vec \Omega - \nabla_\alpha p - \nu ( \nabla \times \mathfrak{\vec \omega} ), \text{при } \vec x \in \Theta\\
+  \vec v = (0,0,0), \text{при } \vec x \in \partial \Theta\\
+  \mathfrak{\vec v} (0) = \vec v _0 \label{ft3D_last}
+\end{gather}
+
+Здесь $\mathfrak{\vec \omega} = \nabla_\alpha \mathfrak{\vec v}$ 
