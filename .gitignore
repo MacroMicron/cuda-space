@@ -18,4 +18,14 @@
 
 #VIM temp files
 *.swp
+*.swa
+*.swo
+
+#gedit temp files
+*~
+
+#texworks temp files
+*.synctex.gz
+*.log
+*.aux
 
