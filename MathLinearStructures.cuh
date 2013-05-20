@@ -127,6 +127,8 @@ typedef struct
 
 	real		  Square;		//it is a polygon square
 
+	real 		  PowerIn;			//input power (in watt) on the face 
+
 	CalcVertex	  *VertexArray;				/* It's a constant for all polygons (faces) in one mesh, which is equal a VertexArray
 											in the mesh. Yes, it's a static field (in our mind) but not in real life,
 											because C-language does not support static fields.

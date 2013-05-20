@@ -342,6 +342,7 @@ void Keyboard(unsigned char Key, int x, int y) {
 	if (Key == ']') {
 		RemoveLight(object);
 		FlushTypesOfFaces(object);
+		FlushSphere(object);
 		printf("Light removed.\n");
 	}	
 	

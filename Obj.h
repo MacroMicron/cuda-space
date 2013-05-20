@@ -80,6 +80,8 @@ extern "C" {
 	//for all faces in the model do: TypesOfFaces[i] = 0;
 	void FlushTypesOfFaces(ObjFile id);
 
+	void FlushSphere(ObjFile id);	
+
 	void ChangeNumberSphereDetalisation(unsigned int SphereDetalisation, ObjFile id);
 
 

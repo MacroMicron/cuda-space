@@ -126,7 +126,7 @@ void ChangeNumberSphereDetalisation(unsigned int SphereDetalisation, ObjFile id)
 			for (i=0; i < SphereDetalisation*(SphereDetalisation-1); i++)
 			{
 				pMesh->m_aSpherePolygonRadiosity[i] = 0.0;
-				if (i%2) pMesh->m_aSpherePolygonRadiosity[i]+=0.5;
+				//if (i%2) pMesh->m_aSpherePolygonRadiosity[i]+=0.5;
 			}
 			pMesh->m_aSphereVertexArray = (ObjVertex*) calloc(SphereDetalisation*SphereDetalisation, sizeof(ObjVertex));
 			assert(pMesh->m_aSphereVertexArray);
@@ -1041,3 +1041,25 @@ void FlushTypesOfFaces(ObjFile id)
 	}	
 }
 
+
+void FlushSphere(ObjFile id)
+{
+        ObjMesh *pMesh = g_LinkedListHead;
+
+        while(pMesh && pMesh->m_iMeshID != id)
+        {
+                pMesh = pMesh->m_pNext;
+        }
+
+        if (pMesh != NULL)
+        {	
+	        if (pMesh->m_aTypesOfFaces != NULL)
+                {
+                        unsigned int i;
+                        for (i=0; i < pMesh->m_iNumberSphereDetalisation*(pMesh->m_iNumberSphereDetalisation-1); i++)
+                        {
+                                pMesh->m_aSpherePolygonRadiosity[i] = 0.0;
+                        }
+                }	
+	}	
+}
