@@ -167,14 +167,23 @@ void DrawSphere(ObjFile id)
 		if (pMesh->m_aSphereVertexArray)
 		{
 			unsigned int i, j, i_, j_, SphereDetalisation = pMesh->m_iNumberSphereDetalisation;
-			float SphereColor[] = {0.0f, 0.0f, 0.25f};
+			float SphereColor[] = {0.0f, 0.0f, 0.0f}; //base color (0.00 0.25 0.25)
+		
 			for (i=1; i<SphereDetalisation; i++)	//important! NumberOf(polygons)=SphereDetalisation*(SphereDetalisation-1)
 			{ 
 				for (j=0; j<SphereDetalisation; j++)
 				{
 					i_ = i-1; j_ = j-1;
 					if (j_==-1) j_+=SphereDetalisation;
-					SphereColor[2] = 0.25 + pMesh->m_aSpherePolygonRadiosity[SphereDetalisation*i+j];
+					
+					{//visual preobrazovanya
+						SphereColor[2] = pMesh->m_aSpherePolygonRadiosity[SphereDetalisation*i+j];
+						if (SphereColor[2] < 0) SphereColor[2] = 0;
+						
+						//SphereColor[2] = SphereColor[2] * 10 - 3;
+						//printf("%f\n", SphereColor[2]);
+
+					}
 					glColor3fv(SphereColor);
  					glBegin(GL_POLYGON);
 	                               	{

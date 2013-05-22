@@ -657,7 +657,11 @@ void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret)
                         		__syncthreads();
 
                         		if (threadIdx.x == 0)
-                                		if (flag == 0) mesh->TypesOfFaces[ix] = SECOND_VISION;
+                                		if (flag == 0) 
+					{
+						mesh->TypesOfFaces[ix] = SECOND_VISION;
+						//mesh->Faces[ix].PowerIn = LightPower * mesh->Faces[ix].Square / (4*3.14159265* INTERVAL_BETWEEN_A_AND_B_2(centroid.x, centroid.y, centroid.z, light->x, light->y, light->z));
+					}
 				}
 			}
 		}
@@ -1085,7 +1089,7 @@ void GPU_example(CalcMesh* mesh)
 		temp2 = 0;
         	cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
 		printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
-		cudaToCountFirstFaces<<< 65500, 365>>>(mesh->Lights[0], 1000.0, cuda_mesh, temp);
+		cudaToCountFirstFaces<<< 65500, 365>>>(mesh->Lights[0], 4000.0, cuda_mesh, temp);
 		//for (integer face = 0; face < 1000; face++){
 		//cudaToCountFirstFaces<<< 1, 1>>>(face, light, cuda_mesh, temp);
 		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));	
@@ -1097,7 +1101,7 @@ void GPU_example(CalcMesh* mesh)
                 cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
 		printf("DEBUG: cudaToCountSecondAndDoubleFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
 		dim3 blocks(1000,1000);
-		cudaToCountSecondAndDoubleFaces<<< blocks, 320>>>(cuda_mesh, temp);
+		//cudaToCountSecondAndDoubleFaces<<< blocks, 320>>>(cuda_mesh, temp);
 		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("GPU test 2:%f \n", temp2);
