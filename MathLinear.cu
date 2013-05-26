@@ -24,8 +24,8 @@
 #include "math.h"
 
 //#define cudaDeviceSheduleBlockingSync 0x04
-//#define PRECISION 0.00001
-#define PRECISION 0.1
+#define PRECISION 0.00000000000000000000001
+//#define PRECISION 0.1
 
 
 #define SGN(a)		( (a)>0 ? 1 : ((a)<0?-1:0) )
@@ -1123,10 +1123,10 @@ void GPU_example(CalcMesh* mesh)
 				TaskIncSubtask1(&task1);
 			}
 		}
-		//cudaToCountFirstFaces<<< , nThreads>>>(mesh->Lights[0], 4000.0, cuda_mesh, temp, 110000, 130000);
 		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));	
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("DEBUG: it's resulsts %f \n", temp2);
+		
 		
 		temp2 = 0;
                 cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
@@ -1137,11 +1137,12 @@ void GPU_example(CalcMesh* mesh)
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("GPU test 2:%f \n", temp2);
 		
+		
 		temp2 = 0;
                 cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
 		printf("DEBUG: cudaToCountSphere() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
                 dim3 blocks2(32, 1000);
-//		cudaToCountSphere<<< blocks2, 320>>>(cuda_mesh, temp);
+		//cudaToCountSphere<<< blocks2, 320>>>(cuda_mesh, temp);
 		//prop.maxThreadsPerBlock
                 printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
                 cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);

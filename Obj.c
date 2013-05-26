@@ -279,18 +279,6 @@ ObjFile LoadOBJ(const char *filename)
 	*/
 	fclose(fp);
 
-
-	//default types of faces: UNDEFINED
-	if ( pMesh->m_iNumberOfFaces > 0)
-	{
-		pMesh->m_aTypesOfFaces = (unsigned int*) calloc(pMesh->m_iNumberOfFaces, sizeof(unsigned int));
-		assert(pMesh->m_aTypesOfFaces);
-		for (i=0; i < pMesh->m_iNumberOfFaces; i++) 
-		{
-			pMesh->m_aTypesOfFaces[i] = 0;
-		}
-	}
-
 	/*
 	**	Allocate the memory for the data arrays and check that it allocated ok
 	*/
@@ -319,7 +307,18 @@ ObjFile LoadOBJ(const char *filename)
 	{
 		pMesh->m_aFaces			= (ObjFace*    )malloc( pMesh->m_iNumberOfFaces		* sizeof(ObjFace)	  );
 		assert(pMesh->m_aFaces);
-	}
+
+
+	        //default types of faces: UNDEFINED
+                pMesh->m_aTypesOfFaces = (unsigned int*) calloc(pMesh->m_iNumberOfFaces, sizeof(unsigned int));
+                assert(pMesh->m_aTypesOfFaces);
+                for (i=0; i < pMesh->m_iNumberOfFaces; i++)
+                {
+                        pMesh->m_aTypesOfFaces[i] = 0;
+                }
+        }
+
+
 	
 	/*
 	**	Now we know how much data is contained in the file and we've allocated memory to hold it all.
