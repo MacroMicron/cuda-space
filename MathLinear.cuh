@@ -1,6 +1,7 @@
 #include "UserSettings.h"
 #include "MathLinearStructures.cuh"
 #include "ObjStruct.h"
+#include "Task.h"
 
 #ifndef _CUDA_RUNTIME_
 #define _CUDA_RUNTIME_

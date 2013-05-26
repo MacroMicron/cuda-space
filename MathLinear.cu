@@ -5,6 +5,8 @@
 #include <malloc.h>
 #include <assert.h>
 #include <math.h>
+//#include <curses.h> readkey
+#include <unistd.h>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -21,6 +23,7 @@
 
 #include "math.h"
 
+//#define cudaDeviceSheduleBlockingSync 0x04
 //#define PRECISION 0.00001
 #define PRECISION 0.1
 
@@ -551,13 +554,13 @@ void OLDToCountFirstFaces(CalcVertex *light, CalcMesh *mesh)
 //TODO: change this function to the more universal (for use in other functions):
 //add bitarray[faces] - which faces to count
 __device__
-void ToCountFirstFaces(CalcVertex *light, real LightPower, CalcMesh* mesh, unsigned int *TypesOfFaces)
+void ToCountFirstFaces(CalcVertex *light, real LightPower, CalcMesh* mesh, unsigned int *TypesOfFaces, integer first, integer last)
 {
 	CalcVertex centroid;
 	integer i, j; //threadIdx.x + blockIdx.x * blockDim.x;// + beginFrom;
 	//int temp;
 	//mesh->NumberOfFaces=1;
-	for(i=blockIdx.x; i < mesh->NumberOfFaces; i+=gridDim.x)
+	for(i=blockIdx.x+first; (i < mesh->NumberOfFaces) && (i < last); i+=gridDim.x)
 	{
 		//for triangles-polygons
 		if (mesh->Faces[i].VertexCount == 3)
@@ -605,20 +608,20 @@ void ToCountFirstFaces(CalcVertex *light, real LightPower, CalcMesh* mesh, unsig
 
 
 __global__
-void cudaToCountFirstFaces(CalcVertex light, real LightPower, CalcMesh* mesh, float* ret)
+void cudaToCountFirstFaces(CalcVertex light, real LightPower, CalcMesh* mesh, float* ret, integer first, integer last)
 {
-	ToCountFirstFaces(&light, LightPower, mesh, mesh->TypesOfFaces);
+	ToCountFirstFaces(&light, LightPower, mesh, mesh->TypesOfFaces, first, last);
 	*ret = 99;
 }
 
 
 
 __global__
-void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret)
+void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret, integer first, integer last)
 {
         CalcVertex centroidFirst, centroidOther, temp;
 	integer iy, ix, j;
-        for (iy=blockIdx.y; iy < mesh->NumberOfFaces; iy+=gridDim.y)
+        for (iy=blockIdx.y; (iy < mesh->NumberOfFaces) && (iy >= first) && (iy < last); iy+=gridDim.y)
         {
                 if ((mesh->TypesOfFaces[iy] == FIRST_VISION)&&(mesh->Faces[iy].VertexCount == 3))
                 {
@@ -1086,22 +1089,50 @@ void GPU_example(CalcMesh* mesh)
 	GPU_tester<<<1, 1>>>(cuda_mesh, temp, mesh->Lights);
 
 	{
+		int nThreads, MaxThreads = 365; //prop.maxThreadsPerBlock;
+		int nBlocks, MaxBlocks = 65500;
+		
+		Task task1;
+		task1.Subtask1_Percent = 0.05;
+		TaskInit(&task1, mesh->NumberOfFaces, 0);
 		temp2 = 0;
         	cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
-		printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
-		cudaToCountFirstFaces<<< 65500, 365>>>(mesh->Lights[0], 4000.0, cuda_mesh, temp);
-		//for (integer face = 0; face < 1000; face++){
-		//cudaToCountFirstFaces<<< 1, 1>>>(face, light, cuda_mesh, temp);
+		//printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
+		nThreads = MaxThreads;
+		nBlocks = task1.Subtask1_Step;
+		if (nBlocks > MaxBlocks)
+		{
+			printf("Error! Please, decrease the subtask percent!\n");
+		}
+		else
+		{
+			while (!task1.IsFinished)
+			{
+				temp2 = 0;
+				cudaToCountFirstFaces<<< nBlocks, nThreads>>>(mesh->Lights[0], 4000.0, cuda_mesh, temp, task1.Subtask1_First, task1.Subtask1_First+task1.Subtask1_Step);
+				//cudaDeviceSynchronize();
+				//cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
+                		//printf("resulst %f \n", temp2);
+				printf("from %d to %d polygons\n", task1.Subtask1_First, task1.Subtask1_First+task1.Subtask1_Step);
+				printf("completed %f percents\n", TaskCompletedPercentAfter(&task1));
+				printf("on grid: %d x %d\n", nBlocks, nThreads);
+				//cudaDeviceSynchronize();
+				printf("with %s\n",cudaGetErrorString(cudaDeviceSynchronize()));
+				usleep(100000);
+				printf("\n");
+				TaskIncSubtask1(&task1);
+			}
+		}
+		//cudaToCountFirstFaces<<< , nThreads>>>(mesh->Lights[0], 4000.0, cuda_mesh, temp, 110000, 130000);
 		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));	
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("DEBUG: it's resulsts %f \n", temp2);
-		//}
 		
 		temp2 = 0;
                 cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
 		printf("DEBUG: cudaToCountSecondAndDoubleFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
 		dim3 blocks(1000,1000);
-		//cudaToCountSecondAndDoubleFaces<<< blocks, 320>>>(cuda_mesh, temp);
+//		cudaToCountSecondAndDoubleFaces<<< blocks, 320>>>(cuda_mesh, temp, 0, mesh->NumberOfFaces);
 		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("GPU test 2:%f \n", temp2);
@@ -1110,7 +1141,7 @@ void GPU_example(CalcMesh* mesh)
                 cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
 		printf("DEBUG: cudaToCountSphere() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
                 dim3 blocks2(32, 1000);
-		cudaToCountSphere<<< blocks2, 320>>>(cuda_mesh, temp);
+//		cudaToCountSphere<<< blocks2, 320>>>(cuda_mesh, temp);
 		//prop.maxThreadsPerBlock
                 printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
                 cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
@@ -1120,6 +1151,12 @@ void GPU_example(CalcMesh* mesh)
 
 	cudaMemcpy(mesh->TypesOfFaces, temp_mesh.TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned int), cudaMemcpyDeviceToHost);
 	cudaMemcpy(mesh->SpherePolygonRadiosity, temp_mesh.SpherePolygonRadiosity, mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1)*sizeof(real), cudaMemcpyDeviceToHost);
+
+	//unsigned int k;
+	//for (k=110000; (k < 130000) ; k++)
+	//{
+	//	mesh->TypesOfFaces[k] = 1;
+	//}
 	
 //DEBUG
 	{
