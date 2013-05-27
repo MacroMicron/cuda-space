@@ -24,11 +24,12 @@
 #include "math.h"
 
 //#define cudaDeviceSheduleBlockingSync 0x04
-#define PRECISION 0.00000000000000000000001
+#define PRECISION 0.001
 //#define PRECISION 0.1
 
 
 #define SGN(a)		( (a)>0 ? 1 : ((a)<0?-1:0) )
+#define SGN10(a)	( (a)>0 ? 1 : 0 )
 
 #define Z_BETWEEN_X_AND_Y(z,x,y)	((x)>(y) ? ((z)>=(y))&&((z)<=(x)) : ((z)<=(y))&&((z)>=(x)))
 //bugfix
@@ -411,9 +412,9 @@ CalcMesh* CreateCalcMesh(ObjMesh *objMesh)
 		assert(calcMesh->VertexArray);
 		
 		calcMesh->NumberSphereDetalisation = objMesh->m_iNumberSphereDetalisation;
-		calcMesh->SpherePolygonRadiosity = (real*) calloc(calcMesh->NumberSphereDetalisation*(calcMesh->NumberSphereDetalisation-1), sizeof(real));
+		calcMesh->SpherePolygonRadiosity = (real*) calloc(calcMesh->NumberSphereDetalisation*calcMesh->NumberSphereDetalisation, sizeof(real));
 		assert(calcMesh->SpherePolygonRadiosity);
-		for (i=0; i < calcMesh->NumberSphereDetalisation*(calcMesh->NumberSphereDetalisation-1); i++)
+		for (i=0; i < calcMesh->NumberSphereDetalisation*calcMesh->NumberSphereDetalisation; i++)
 		{
 			calcMesh->SpherePolygonRadiosity[i] = objMesh->m_aSpherePolygonRadiosity[i];	
 		}
@@ -440,7 +441,7 @@ CalcMesh* CreateCalcMesh(ObjMesh *objMesh)
 			PlaneDefine(calcMesh->Faces + i);
 			//only for convex polygons
 			DefineConvexSquare(calcMesh->Faces+i);
-			calcMesh->Faces[i].PowerIn = 0.0f;
+			calcMesh->Faces[i].PowerIn[0] = calcMesh->Faces[i].PowerIn[1] = 0.0f;
 		}
 		if (objMesh->m_aLights) //only one light in this implementation
 		{
@@ -462,7 +463,7 @@ void CopyResults(CalcMesh *calcMesh, ObjMesh *objMesh)
 		{
 			objMesh->m_aTypesOfFaces[i] = calcMesh->TypesOfFaces[i];
 		}
-		for (i=0; i < calcMesh->NumberSphereDetalisation * (calcMesh->NumberSphereDetalisation-1); i++)
+		for (i=0; i < calcMesh->NumberSphereDetalisation * calcMesh->NumberSphereDetalisation; i++)
 		{
 			objMesh->m_aSpherePolygonRadiosity[i] = calcMesh->SpherePolygonRadiosity[i];
 		}
@@ -590,7 +591,8 @@ void ToCountFirstFaces(CalcVertex *light, real LightPower, CalcMesh* mesh, unsig
 				if (TypesOfFaces[i] != OTHER_VISION)
 				{
 					TypesOfFaces[i] = FIRST_VISION;
-					mesh->Faces[i].PowerIn = LightPower * mesh->Faces[i].Square / (4*3.14159265* INTERVAL_BETWEEN_A_AND_B_2(centroid.x, centroid.y, centroid.z, light->x, light->y, light->z));
+					
+					mesh->Faces[i].PowerIn[SGN10(mesh->Faces[i].PlaneCoefficients[0]*light->x + mesh->Faces[i].PlaneCoefficients[1]*light->y + mesh->Faces[i].PlaneCoefficients[2]*light->z + mesh->Faces[i].PlaneCoefficients[3])] = LightPower * mesh->Faces[i].Square / (4*3.14159265* INTERVAL_BETWEEN_A_AND_B_2(centroid.x, centroid.y, centroid.z, light->x, light->y, light->z));
 				}
 
 //2150 for eleham.obj		
@@ -849,7 +851,7 @@ real DFO(CalcVertex Light, CalcVertex NormalBase, real *NormalVector, CalcVertex
 	/*
 	In all faces without energy lose
 	*/
-	//return 1;
+	return 1;
 	
 	/*
 	Lambert
@@ -872,17 +874,15 @@ __global__
 void cudaToCountSphere(CalcMesh *mesh, float *ret)
 {
         integer blockX, blockY, thread;
-	//thread = threadIdx.x + blockIdx.x * blockDim.
-        //if (thread < mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1))
-        for (blockY = blockIdx.y; blockY < mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1); blockY+=gridDim.y )
+        for (blockY = blockIdx.y; blockY < mesh->NumberSphereDetalisation*mesh->NumberSphereDetalisation; blockY+=gridDim.y )
 	{
-		integer	  i = thread / mesh->NumberSphereDetalisation + 1,	//for i=1 to i++<N
-			  j = thread % mesh->NumberSphereDetalisation,		//for j=0 to j++<N
+		integer	  i = blockY / mesh->NumberSphereDetalisation + 1,	//for i=1 to i++<=N
+			  j = blockY % mesh->NumberSphereDetalisation,		//for j=0 to j++<N
 			  i_ = i-1,
 			  j_ = j-1;
 		if (j_==-1) j_+=mesh->NumberSphereDetalisation;
 
-		real	  r = 3000.0,
+		real	  r = 300.0,
 		 	 pi = 3.14159265358979323846,
 			 iphi = -pi/2.0 +  i*pi/mesh->NumberSphereDetalisation,
                         i_phi = -pi/2.0 + i_*pi/mesh->NumberSphereDetalisation,
@@ -904,7 +904,7 @@ void cudaToCountSphere(CalcMesh *mesh, float *ret)
 				r*cosiphi*cosj_alpha, r*cosiphi*sinj_alpha, r*siniphi);
 
 		//Square_4 = R*R*dalpha*dphi*();
-		
+			
 		//change this
 		//ToCountFirstFaces(&centroid, mesh);	
 		
@@ -940,7 +940,9 @@ void cudaToCountSphere(CalcMesh *mesh, float *ret)
 						{
 							real Square_4 = r*(jalpha-j_alpha)*r*2*cos((iphi+i_phi)/2) * sin((iphi-i_phi)/2);
 							if (Square_4 < 0) Square_4 *= -1;
-							mesh->SpherePolygonRadiosity[blockY] +=  DFO(mesh->Lights[0], centroidOther, mesh->Faces[blockX].PlaneCoefficients, centroid) * mesh->Faces[blockX].PowerIn * Square_4 / (2*pi*INTERVAL_BETWEEN_A_AND_B_2(centroid.x,centroid.y,centroid.z, centroidOther.x,centroidOther.y,centroidOther.z));//mesh->Faces[blockX].Square;
+							mesh->SpherePolygonRadiosity[blockY] +=  DFO(mesh->Lights[0], centroidOther, mesh->Faces[blockX].PlaneCoefficients, centroid) * mesh->Faces[blockX].PowerIn[SGN10(mesh->Faces[blockX].PlaneCoefficients[0]*centroid.x + mesh->Faces[blockX].PlaneCoefficients[1]*centroid.y + mesh->Faces[blockX].PlaneCoefficients[2]*centroid.z + mesh->Faces[blockX].PlaneCoefficients[3])] * Square_4 / (2*pi*INTERVAL_BETWEEN_A_AND_B_2(centroid.x,centroid.y,centroid.z, centroidOther.x,centroidOther.y,centroidOther.z));//mesh->Faces[blockX].Square;
+							//if (blockY == 1) *ret = centroid.z;//mesh->Faces[blockX].PlaneCoefficients[3];//
+							//*ret = mesh->Faces[blockX].PowerIn[SGN10(mesh->Faces[blockX].PlaneCoefficients[0]*centroid.x + mesh->Faces[blockX].PlaneCoefficients[1]*centroid.y + mesh->Faces[blockX].PlaneCoefficients[2]*centroid.z + mesh->Faces[blockX].PlaneCoefficients[3])]+100;
 							//i don't know why it need, but with this line it works fine
 							//if (*ret != 0) *ret = DFO(mesh->Lights[0], centroidOther, mesh->Faces[blockX].PlaneCoefficients, centroid);
 						}
@@ -1047,8 +1049,8 @@ void GPU_example(CalcMesh* mesh)
 	assert( cudaMalloc((void **)&temp_mesh.Lights, sizeof(CalcVertex)) == cudaSuccess );
 	assert( cudaMemcpy(temp_mesh.Lights, mesh->Lights, sizeof(CalcVertex), cudaMemcpyHostToDevice) == cudaSuccess );	
 	
-	assert( cudaMalloc((void **)&temp_mesh.SpherePolygonRadiosity, mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1)*sizeof(real)) == cudaSuccess );
-        assert( cudaMemcpy(temp_mesh.SpherePolygonRadiosity, mesh->SpherePolygonRadiosity, mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1)*sizeof(real), cudaMemcpyHostToDevice) == cudaSuccess );
+	assert( cudaMalloc((void **)&temp_mesh.SpherePolygonRadiosity, mesh->NumberSphereDetalisation*mesh->NumberSphereDetalisation*sizeof(real)) == cudaSuccess );
+        assert( cudaMemcpy(temp_mesh.SpherePolygonRadiosity, mesh->SpherePolygonRadiosity, mesh->NumberSphereDetalisation*mesh->NumberSphereDetalisation*sizeof(real), cudaMemcpyHostToDevice) == cudaSuccess );
 	
 	assert( cudaMalloc((void **)&cuda_mesh, sizeof(CalcMesh)) == cudaSuccess );
 	assert( cudaMemcpy(cuda_mesh, &temp_mesh, sizeof(CalcMesh), cudaMemcpyHostToDevice) == cudaSuccess );
@@ -1093,7 +1095,7 @@ void GPU_example(CalcMesh* mesh)
 		int nBlocks, MaxBlocks = 65500;
 		
 		Task task1;
-		task1.Subtask1_Percent = 0.05;
+		task1.Subtask1_Percent = 1;
 		TaskInit(&task1, mesh->NumberOfFaces, 0);
 		temp2 = 0;
         	cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
@@ -1109,7 +1111,7 @@ void GPU_example(CalcMesh* mesh)
 			while (!task1.IsFinished)
 			{
 				temp2 = 0;
-				cudaToCountFirstFaces<<< nBlocks, nThreads>>>(mesh->Lights[0], 4000.0, cuda_mesh, temp, task1.Subtask1_First, task1.Subtask1_First+task1.Subtask1_Step);
+				cudaToCountFirstFaces<<< nBlocks, nThreads>>>(mesh->Lights[0], 400000.0, cuda_mesh, temp, task1.Subtask1_First, task1.Subtask1_First+task1.Subtask1_Step);
 				//cudaDeviceSynchronize();
 				//cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
                 		//printf("resulst %f \n", temp2);
@@ -1142,7 +1144,7 @@ void GPU_example(CalcMesh* mesh)
                 cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
 		printf("DEBUG: cudaToCountSphere() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
                 dim3 blocks2(32, 1000);
-		//cudaToCountSphere<<< blocks2, 320>>>(cuda_mesh, temp);
+		cudaToCountSphere<<< blocks2, 320>>>(cuda_mesh, temp);
 		//prop.maxThreadsPerBlock
                 printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
                 cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
@@ -1151,7 +1153,7 @@ void GPU_example(CalcMesh* mesh)
 	}
 
 	cudaMemcpy(mesh->TypesOfFaces, temp_mesh.TypesOfFaces, mesh->NumberOfFaces*sizeof(unsigned int), cudaMemcpyDeviceToHost);
-	cudaMemcpy(mesh->SpherePolygonRadiosity, temp_mesh.SpherePolygonRadiosity, mesh->NumberSphereDetalisation*(mesh->NumberSphereDetalisation-1)*sizeof(real), cudaMemcpyDeviceToHost);
+	cudaMemcpy(mesh->SpherePolygonRadiosity, temp_mesh.SpherePolygonRadiosity, mesh->NumberSphereDetalisation*mesh->NumberSphereDetalisation*sizeof(real), cudaMemcpyDeviceToHost);
 
 	//unsigned int k;
 	//for (k=110000; (k < 130000) ; k++)

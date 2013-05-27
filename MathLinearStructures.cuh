@@ -127,7 +127,7 @@ typedef struct
 
 	real		  Square;		//it is a polygon square
 
-	real 		  PowerIn;			//input power (in watt) on the face 
+	real 		  PowerIn[2];			//input power (in watt) on the face, [1] from positive side and [0] from negative side
 
 	CalcVertex	  *VertexArray;				/* It's a constant for all polygons (faces) in one mesh, which is equal a VertexArray
 											in the mesh. Yes, it's a static field (in our mind) but not in real life,

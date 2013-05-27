@@ -121,20 +121,21 @@ void ChangeNumberSphereDetalisation(unsigned int SphereDetalisation, ObjFile id)
 		{
 			unsigned int i, j;
 			pMesh->m_iNumberSphereDetalisation = SphereDetalisation;
-			pMesh->m_aSpherePolygonRadiosity = (float*) calloc(SphereDetalisation*(SphereDetalisation-1), sizeof(float));
+			pMesh->m_aSpherePolygonRadiosity = (float*) calloc(SphereDetalisation*SphereDetalisation, sizeof(float));
 			assert(pMesh->m_aSpherePolygonRadiosity);
-			for (i=0; i < SphereDetalisation*(SphereDetalisation-1); i++)
+			for (i=0; i < SphereDetalisation*SphereDetalisation; i++)
 			{
 				pMesh->m_aSpherePolygonRadiosity[i] = 0.0;
 				//if (i%2) pMesh->m_aSpherePolygonRadiosity[i]+=0.5;
+				//if (i == 10) pMesh->m_aSpherePolygonRadiosity[i]+=0.5;
 			}
-			pMesh->m_aSphereVertexArray = (ObjVertex*) calloc(SphereDetalisation*SphereDetalisation, sizeof(ObjVertex));
+			pMesh->m_aSphereVertexArray = (ObjVertex*) calloc(SphereDetalisation*(SphereDetalisation+1), sizeof(ObjVertex));
 			assert(pMesh->m_aSphereVertexArray);
 
 
 			float phi, alpha, pi = 3.141592653;
-                	float r = 3000.0;		//if you change this, don't forget to change in other places!
-                	for (i=0; i<SphereDetalisation; i++)
+                	float r = 300.0;		//if you change this, don't forget to change in other places!
+                	for (i=0; i<=SphereDetalisation; i++)
                 	{
                         	for (j=0; j<SphereDetalisation; j++)
                         	{
@@ -169,7 +170,7 @@ void DrawSphere(ObjFile id)
 			unsigned int i, j, i_, j_, SphereDetalisation = pMesh->m_iNumberSphereDetalisation;
 			float SphereColor[] = {0.0f, 0.0f, 0.0f}; //base color (0.00 0.25 0.25)
 		
-			for (i=1; i<SphereDetalisation; i++)	//important! NumberOf(polygons)=SphereDetalisation*(SphereDetalisation-1)
+			for (i=1; i<SphereDetalisation+1; i++)	//important! NumberOf(polygons)=SphereDetalisation*(SphereDetalisation-1)
 			{ 
 				for (j=0; j<SphereDetalisation; j++)
 				{
@@ -177,7 +178,7 @@ void DrawSphere(ObjFile id)
 					if (j_==-1) j_+=SphereDetalisation;
 					
 					{//visual preobrazovanya
-						SphereColor[2] = pMesh->m_aSpherePolygonRadiosity[SphereDetalisation*i+j];
+						SphereColor[2] = pMesh->m_aSpherePolygonRadiosity[SphereDetalisation*(i-1)+j];
 						if (SphereColor[2] < 0) SphereColor[2] = 0;
 						
 						//SphereColor[2] = SphereColor[2] * 10 - 3;
@@ -1064,7 +1065,7 @@ void FlushSphere(ObjFile id)
 	        if (pMesh->m_aTypesOfFaces != NULL)
                 {
                         unsigned int i;
-                        for (i=0; i < pMesh->m_iNumberSphereDetalisation*(pMesh->m_iNumberSphereDetalisation-1); i++)
+                        for (i=0; i < pMesh->m_iNumberSphereDetalisation*pMesh->m_iNumberSphereDetalisation; i++)
                         {
                                 pMesh->m_aSpherePolygonRadiosity[i] = 0.0;
                         }
