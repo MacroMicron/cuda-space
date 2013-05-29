@@ -21,7 +21,7 @@
 
 //macros for change color which depends of type of the color (first, second, double or other)
 //output: the float[3] vector (StandartColor/UndefinedVisionColor, FirstVisionColor, SecondVisionColor, DoubleVisionColor, OtherVision)
-//input: {0, 1, 2, 3, 4}
+
 #define CHOOSE_FACE_COLOR(Type) ((Type) ? ( (Type)==1 ? FirstVisionColor : ((Type) == 2 ? SecondVisionColor : ( (Type)==3 ? DoubleVisionColor : OtherVisionColor)) ) : StandartColor)
 
 //buffer for read string
@@ -127,14 +127,14 @@ void ChangeNumberSphereDetalisation(unsigned int SphereDetalisation, ObjFile id)
 			{
 				pMesh->m_aSpherePolygonRadiosity[i] = 0.0;
 				//if (i%2) pMesh->m_aSpherePolygonRadiosity[i]+=0.5;
-				//if (i == 10) pMesh->m_aSpherePolygonRadiosity[i]+=0.5;
+				//if (i == 0) pMesh->m_aSpherePolygonRadiosity[i]+=0.5;
 			}
 			pMesh->m_aSphereVertexArray = (ObjVertex*) calloc(SphereDetalisation*(SphereDetalisation+1), sizeof(ObjVertex));
 			assert(pMesh->m_aSphereVertexArray);
 
 
 			float phi, alpha, pi = 3.141592653;
-                	float r = 300.0;		//if you change this, don't forget to change in other places!
+                	float r = 3000.0;		//if you change this, don't forget to change in other places!
                 	for (i=0; i<=SphereDetalisation; i++)
                 	{
                         	for (j=0; j<SphereDetalisation; j++)

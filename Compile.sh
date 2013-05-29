@@ -27,6 +27,11 @@ gcc -c Task.c -o Task.o
 if [ $? ]; then echo "     OK"; else echo "     ERROR"; fi
 echo ""
 
+#echo "     BMP.C -> BMP.O"
+#gcc -c Bmp.c -o Bmp.o
+#if [ $? ]; then echo "     OK"; else echo "     ERROR"; fi
+#echo ""
+
 echo "     MATHLINEAR.CU -> MATHLINEAR.O"
 nvcc -c MathLinear.cu -o MathLinear.o -arch=sm_12 
 if [ $? ]; then echo "     OK"; else echo "     ERROR"; fi

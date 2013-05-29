@@ -14,25 +14,22 @@ extern "C" {
 //2 subtasks only in one task (maximum)
 typedef struct
 {
-	//percent for implement
-	float 		Subtask1_Percent;
-	float		Subtask2_Percent;
-
-	//private read-only
+	//private fields
+	float 		Percent;
+	integer 	Step;
 	integer 	Subtask1_First;
-	integer		Subtask1_Step;
+	integer		Subtask1_Total;
 	integer 	Subtask2_First;
-	integer		Subtask2_Step;	
+	integer		Subtask2_Total;
 	
 	//result
 	Bool		IsFinished;
 	
 } Task;
 
-void TaskInit(Task *task, integer total1, integer total2);
-float TaskCompletedPercentAfter(const Task *task);
-void TaskIncSubtask1(Task *task);
-void TaskIncSubtask2(Task *task);
+void TaskInit(Task *task, float percent, integer total1, integer total2);
+float TaskCompleted(const Task *task);
+void TaskInc(Task *task);
 
 #ifdef __cplusplus
 }
