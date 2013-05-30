@@ -16,6 +16,7 @@
 //#include "FileDialog.h"
 #include "Obj.h"
 #include "Camera.h"
+#include "Bmp.h"
 
 //just temp, delete after
 #include "MathLinear.cuh"
@@ -38,7 +39,8 @@ const char* instructionList = "\nInstructions:\n"
 		"	'[' - add light\n" 			//only 1 light in this implementation
 		"	']' - remove light\n"
 		"	N - move to the next light\n" 		//only 1 light not Previous light command
-		"	C - count first, second, double vision faces\n"		 
+		"	C - count first, second, double vision faces\n"
+		"	M - to save Sphere Map picture into bitmap file\n"		 
 		"\n";
 
 //just a bug hack
@@ -378,6 +380,23 @@ void Keyboard(unsigned char Key, int x, int y) {
 		{
 			printf("There is no lights! Please, enter light!\n");
 		}
+	}
+
+	if (Key == 'M' || Key == 'm') {
+                char filename[256];
+
+                printf("Enter path to the new file:\n");
+                scanf("%s", filename);
+                printf("Saving file... Please Wait...\n");
+		Bitmap *bitmap = CreateBMP(200,100);
+                if (bitmap)
+		{
+			GetSphereBitmap(object, bitmap);
+			SaveBMPtoFile(bitmap, filename);
+			DestroyBMP(bitmap);
+			printf("File saved.\n");
+		}
+		else printf("Error in file saving!\n");
 	}
 	
 	glutPostRedisplay();

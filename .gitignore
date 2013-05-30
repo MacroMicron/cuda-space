@@ -19,3 +19,6 @@
 #VIM temp files
 *.swp
 
+#bitmap images
+*.bmp
+

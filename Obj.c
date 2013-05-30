@@ -1062,7 +1062,7 @@ void FlushSphere(ObjFile id)
 
         if (pMesh != NULL)
         {	
-	        if (pMesh->m_aTypesOfFaces != NULL)
+	        if (pMesh->m_aSpherePolygonRadiosity != NULL)
                 {
                         unsigned int i;
                         for (i=0; i < pMesh->m_iNumberSphereDetalisation*pMesh->m_iNumberSphereDetalisation; i++)
@@ -1071,4 +1071,109 @@ void FlushSphere(ObjFile id)
                         }
                 }	
 	}	
+}
+
+
+void GetSphereBitmap(ObjFile id, Bitmap *bitmap)
+{
+        ObjMesh *pMesh = g_LinkedListHead;
+
+        while(pMesh && pMesh->m_iMeshID != id)
+        {
+                pMesh = pMesh->m_pNext;
+        }
+
+        if (pMesh != NULL)
+        {
+                if (pMesh->m_aSpherePolygonRadiosity != NULL)
+                {
+                        if ((bitmap != NULL)&&(bitmap->red != NULL)&&(bitmap->blue != NULL)&&(bitmap->green != NULL))
+			{
+				unsigned int bmpR = (bitmap->w-1 <= 2*bitmap->h) ? (bitmap->w-1)/4 : bitmap->h/2;
+				unsigned int i, j, ii, jj;
+				float phi, phi2, alpha, R=3000.0;
+				for (i=0; i < bitmap->w; i++)
+				{
+					for (j=0; j < bitmap->h; j++)
+					{
+				//	printf("(%d, %d)\n", i, j);
+						//left circle
+						if ( (i-bmpR)*(i-bmpR) + (j-bmpR)*(j-bmpR) <= bmpR*bmpR )
+						{
+							//for left circle phi >= 0
+							//1. (bmpi,bmpj) -> (alpha, phi, R) on the Sphere
+							if ((i==bmpR)&&(j==bmpR))
+							{
+								phi = 3.141592/2;
+								alpha = 0.0; //Any == Nan
+							}
+							else
+							{
+								alpha=acos(((float)i-bmpR) / sqrt((i-bmpR)*(i-bmpR)+(bmpR-j)*(bmpR-j)))*(bmpR>j ? 1.0 : -1.0);
+								phi = acos(sqrt((i-bmpR)*(i-bmpR)+(bmpR-j)*(bmpR-j))/bmpR);
+							}
+							{	//(alpha, phi, R) -> (alpha', phi', R) on the Sphere
+								//preobrazovanie
+							/*	float newphi, newalpha;
+								newphi = asin(cos(phi)*cos(alpha));
+								if ((phi==0)&&(alpha==0))
+								{
+									newalpha = 0; //Any == Nan	
+								}
+								else
+								{
+							        	newalpha = acos(sin(phi)/cos(newphi));
+								}
+								phi = newphi;
+								alpha = newalpha;
+							*/
+							}
+							//(alpha',phi',R) -> (ii,jj) in SpherePolygonRadiosity array
+							ii = (phi + 3.141592/2) * pMesh->m_iNumberSphereDetalisation / 3.141592;
+							jj = (alpha + 3.141592) * pMesh->m_iNumberSphereDetalisation / 3.141592 / 2;
+
+							bitmap->red[i*bitmap->h+j] = bitmap->green[i*bitmap->h+j] = 0.0;	
+							bitmap->blue[i*bitmap->h+j] = pMesh->m_aSpherePolygonRadiosity[ii*pMesh->m_iNumberSphereDetalisation+jj];
+						}
+						//right circle
+						else if ( (i-3*bmpR)*(i-3*bmpR) + (j-bmpR)*(j-bmpR) <= bmpR*bmpR )
+						{
+							//for right circle phi <= 0
+                                                        //1. (bmpi,bmpj) -> (alpha, phi, R) on the Sphere
+                                                        if ((i==3*bmpR)&&(j==bmpR))
+                                                        {
+                                                                phi = -3.141592/2;
+                                                                alpha = 0.0; //Any == Nan
+                                                        }
+                                                        else
+                                                        {
+                                                                alpha=acos(((float)i-3*bmpR) / sqrt((i-3*bmpR)*(i-3*bmpR)+(bmpR-j)*(bmpR-j)))*(bmpR>j ? 1.0 : -1.0);
+                                                                phi = -acos(sqrt((i-3*bmpR)*(i-3*bmpR)+(bmpR-j)*(bmpR-j))/bmpR);
+                                                        }
+                                                        {       //(alpha, phi, R) -> (alpha', phi', R) on the Sphere
+                                                                //preobrazovanie
+							}
+                                                        //(alpha',phi',R) -> (ii,jj) in SpherePolygonRadiosity array
+                                                        ii = (phi + 3.141592/2) * pMesh->m_iNumberSphereDetalisation / 3.141592;
+                                                        jj = (alpha + 3.141592) * pMesh->m_iNumberSphereDetalisation / 3.141592 / 2;
+
+                                                        bitmap->red[i*bitmap->h+j] = bitmap->green[i*bitmap->h+j] = 0.0;
+                                                        bitmap->blue[i*bitmap->h+j] = pMesh->m_aSpherePolygonRadiosity[ii*pMesh->m_iNumberSphereDetalisation+jj];	
+						}
+						else
+						{
+							bitmap->red[i*bitmap->h+j] = bitmap->green[i*bitmap->h+j] = bitmap->blue[i*bitmap->h+j] = 0.0;
+						}
+					}				
+				}
+
+				for (i=0; i < pMesh->m_iNumberSphereDetalisation; i++)//*pMesh->m_iNumberSphereDetalisation; i++)
+        	                for (j=0; j < pMesh->m_iNumberSphereDetalisation; j++)
+				{
+					//if (j==0) printf("\n");
+					//printf("%f\n", pMesh->m_aSpherePolygonRadiosity[i*pMesh->m_iNumberSphereDetalisation + j]);
+                        	}
+			}
+		}
+	}
 }

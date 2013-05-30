@@ -3,6 +3,7 @@
 #ifndef _OBJ_LOADER_H_
 #define _OBJ_LOADER_H_
 
+#include "Bmp.h"
 
 //different ways for calculating
 #define ON_GPU 1
@@ -84,6 +85,7 @@ extern "C" {
 
 	void ChangeNumberSphereDetalisation(unsigned int SphereDetalisation, ObjFile id);
 
+	void GetSphereBitmap(ObjFile id, Bitmap *bmp);
 
 #ifdef __cplusplus
 }

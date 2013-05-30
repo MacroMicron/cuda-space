@@ -1101,7 +1101,7 @@ void GPU_example(CalcMesh* mesh)
 			MaxThreads = 365;
 			MaxBlocks = 65500;
 			Task task1;
-			TaskInit(&task1, 0.2, mesh->NumberOfFaces, 0);
+			TaskInit(&task1, 1.0, mesh->NumberOfFaces, 0);
 			temp2 = 0;
         		cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
 			//printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
@@ -1138,7 +1138,7 @@ void GPU_example(CalcMesh* mesh)
 		{
 			MaxThreads = 315;
 			Task task2;
-			TaskInit(&task2, 0.01, mesh->NumberOfFaces, mesh->NumberOfFaces);
+			TaskInit(&task2, 1.0, mesh->NumberOfFaces, mesh->NumberOfFaces);
 			temp2 = 0;
         	        cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
 			//printf("DEBUG: cudaToCountSecondAndDoubleFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
