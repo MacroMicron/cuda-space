@@ -1033,12 +1033,9 @@ void GPU_example(CalcMesh* mesh)
 	{
 		printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
 		cudaToCountFirstFaces<<< 65500, 365>>>(mesh->Lights[0], cuda_mesh, temp);
-		//for (integer face = 0; face < 1000; face++){
-		//cudaToCountFirstFaces<<< 1, 1>>>(face, light, cuda_mesh, temp);
 		printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));	
 		cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 		printf("DEBUG: it's resulsts %f \n", temp2);
-		//}
 		
 		printf("DEBUG: cudaToCountSecondAndDoubleFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
 		dim3 blocks(1000,1000);
