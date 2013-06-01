@@ -388,7 +388,7 @@ void Keyboard(unsigned char Key, int x, int y) {
                 printf("Enter path to the new file:\n");
                 scanf("%s", filename);
                 printf("Saving file... Please Wait...\n");
-		Bitmap *bitmap = CreateBMP(200,100);
+		Bitmap *bitmap = CreateBMP(400,200);
                 if (bitmap)
 		{
 			GetSphereBitmap(object, bitmap);

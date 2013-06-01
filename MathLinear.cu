@@ -24,8 +24,8 @@
 #include "math.h"
 
 //#define cudaDeviceSheduleBlockingSync 0x04
-//#define PRECISION 0.001
-#define PRECISION 0.1
+//#define PRECISION 0.00005
+#define PRECISION 50.0
 
 
 #define SGN(a)		( (a)>0 ? 1 : ((a)<0?-1:0) )
@@ -488,6 +488,35 @@ void DeleteCalcMesh(CalcMesh *calcMesh)
 
 
 
+
+//light way: Light -> Normal Base Point -> Eye
+__host__ __device__
+real DFO(CalcVertex Light, CalcVertex NormalBase, real *NormalVector, CalcVertex Eye)
+{
+        /*
+        In all faces without energy lose
+        */
+        //return 1;
+
+        /*
+        Lambert
+        */
+        return COS_BETWEEN(NormalVector[0], NormalVector[1], NormalVector[2], Eye.x - NormalBase.x, Eye.y - NormalBase.y, Eye.z - NormalBase.z);
+
+        /*
+        Mirror
+        */
+        //return (NormalVector[0]*(Eye.x - NormalBase.x) + NormalVector[1]*(Eye.y - NormalBase.y) + NormalVector[2]*(Eye.z - NormalBase.z)) / sqrt(NormalVector[0]*NormalVector[0] + NormalVector[1]*NormalVector[1] + NormalVector[2]*NormalVector[2]) / sqrt((Eye.x-NormalBase.x)*(Eye.x-NormalBase.x) + (Eye.y-NormalBase.y)*(Eye.y-NormalBase.y) + (Eye.z-NormalBase.z)*(Eye.z-NormalBase.z)); 
+        real answer = 2 * COS_BETWEEN(NormalVector[0], NormalVector[1], NormalVector[2],  Light.x-NormalBase.x, Light.y-NormalBase.y, Light.z-NormalBase.z) * COS_BETWEEN(NormalVector[0], NormalVector[1], NormalVector[2], Eye.x - NormalBase.x, Eye.y - NormalBase.y, Eye.z - NormalBase.z) - COS_BETWEEN(Light.x-NormalBase.x, Light.y-NormalBase.y, Light.z-NormalBase.z, Eye.x - NormalBase.x, Eye.y - NormalBase.y, Eye.z - NormalBase.z);
+        if (answer < 0) answer = 0;
+        answer = answer*answer*answer*answer;
+        return answer;
+
+}
+
+
+
+
 //to count first faces from light-point (by segments [light, centroid of polygon])
 __host__ __device__
 void OLDToCountFirstFaces(CalcVertex *light, CalcMesh *mesh)
@@ -620,8 +649,8 @@ void cudaToCountFirstFaces(CalcVertex light, real LightPower, CalcMesh* mesh, fl
 
 
 __global__
-void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret, integer first1, integer first2, integer last1, integer last2)
-//first1 and last1 - for iy index; first2 and last2 - for ix index
+void cudaToCountSecondAndDoubleFaces(CalcVertex light, CalcMesh *mesh, float *ret, integer first1, integer first2, integer last1, integer last2)
+//fist1 and last1 - for iy index; first2 and last2 - for ix index
 //first1, first2, last1, last2 from 0 to NumberOfFaces
 {
         CalcVertex centroidFirst, centroidOther, temp;
@@ -669,7 +698,9 @@ void cudaToCountSecondAndDoubleFaces(CalcMesh *mesh, float *ret, integer first1,
 					{
 						mesh->TypesOfFaces[ix] = SECOND_VISION;
 						//mesh->Faces[ix].PowerIn = LightPower * mesh->Faces[ix].Square / (4*3.14159265* INTERVAL_BETWEEN_A_AND_B_2(centroid.x, centroid.y, centroid.z, light->x, light->y, light->z));
-					}
+						mesh->Faces[ix].PowerIn[SGN10(mesh->Faces[ix].PlaneCoefficients[0]*centroidFirst.x + mesh->Faces[ix].PlaneCoefficients[1]*centroidFirst.y + mesh->Faces[ix].PlaneCoefficients[2]*centroidFirst.z + mesh->Faces[ix].PlaneCoefficients[3])] +=
+									 DFO(light, centroidFirst, mesh->Faces[iy].PlaneCoefficients, centroidOther)          *        mesh->Faces[iy].PowerIn[SGN10(mesh->Faces[iy].PlaneCoefficients[0]*centroidOther.x + mesh->Faces[iy].PlaneCoefficients[1]*centroidOther.y + mesh->Faces[iy].PlaneCoefficients[2]*centroidOther.z + mesh->Faces[iy].PlaneCoefficients[3])]          *       mesh->Faces[ix].Square            /            (2*3.14159265* INTERVAL_BETWEEN_A_AND_B_2(centroidFirst.x, centroidFirst.y, centroidFirst.z, centroidOther.x, centroidOther.y, centroidOther.z));
+					}//with radio dfo
 				}
 			}
 		}
@@ -847,31 +878,6 @@ DECREASE_SEGMENT_TO_INTERVAL_3D(temp.x, temp.y, temp.z,
 
 
 
-//light way: Light -> Normal Base Point -> Eye
-__host__ __device__
-real DFO(CalcVertex Light, CalcVertex NormalBase, real *NormalVector, CalcVertex Eye)
-{
-	/*
-	In all faces without energy lose
-	*/
-	//return 1;
-	
-	/*
-	Lambert
-	*/
-	return COS_BETWEEN(NormalVector[0], NormalVector[1], NormalVector[2], Eye.x - NormalBase.x, Eye.y - NormalBase.y, Eye.z - NormalBase.z);
-	
-	/*
-	Mirror
-	*/
-	//return (NormalVector[0]*(Eye.x - NormalBase.x) + NormalVector[1]*(Eye.y - NormalBase.y) + NormalVector[2]*(Eye.z - NormalBase.z)) / sqrt(NormalVector[0]*NormalVector[0] + NormalVector[1]*NormalVector[1] + NormalVector[2]*NormalVector[2]) / sqrt((Eye.x-NormalBase.x)*(Eye.x-NormalBase.x) + (Eye.y-NormalBase.y)*(Eye.y-NormalBase.y) + (Eye.z-NormalBase.z)*(Eye.z-NormalBase.z)); 
-	real answer = 2 * COS_BETWEEN(NormalVector[0], NormalVector[1], NormalVector[2],  Light.x-NormalBase.x, Light.y-NormalBase.y, Light.z-NormalBase.z) * COS_BETWEEN(NormalVector[0], NormalVector[1], NormalVector[2], Eye.x - NormalBase.x, Eye.y - NormalBase.y, Eye.z - NormalBase.z) - COS_BETWEEN(Light.x-NormalBase.x, Light.y-NormalBase.y, Light.z-NormalBase.z, Eye.x - NormalBase.x, Eye.y - NormalBase.y, Eye.z - NormalBase.z);
-	if (answer < 0) answer = 0;
-	answer = answer*answer*answer*answer;
-	return answer;
-	
-}	
-
 
 __global__
 void cudaToCountSphere(CalcMesh *mesh, float *ret)
@@ -949,8 +955,13 @@ void cudaToCountSphere(CalcMesh *mesh, float *ret)
 							//i don't know why it need, but with this line it works fine
 							//if (*ret != 0) *ret = DFO(mesh->Lights[0], centroidOther, mesh->Faces[blockX].PlaneCoefficients, centroid);
 						}
-						else
+						else if (mesh->TypesOfFaces[blockX] == SECOND_VISION)
 						{
+							real Square_4 = r*(jalpha-j_alpha)*r*2*cos((iphi+i_phi)/2) * sin((iphi-i_phi)/2);
+                                                        if (Square_4 < 0) Square_4 *= -1;
+                                                        mesh->SpherePolygonRadiosity[blockY] +=  
+								DFO(mesh->Lights[0], centroidOther, mesh->Faces[blockX].PlaneCoefficients, centroid) * 
+								mesh->Faces[blockX].PowerIn[SGN10(mesh->Faces[blockX].PlaneCoefficients[0]*centroid.x + mesh->Faces[blockX].PlaneCoefficients[1]*centroid.y + mesh->Faces[blockX].PlaneCoefficients[2]*centroid.z + mesh->Faces[blockX].PlaneCoefficients[3])] * Square_4 / (2*pi*INTERVAL_BETWEEN_A_AND_B_2(centroid.x,centroid.y,centroid.z, centroidOther.x,centroidOther.y,centroidOther.z));
 							mesh->SpherePolygonRadiosity[blockY] += 0.0;
 						}
 					}
@@ -1098,10 +1109,10 @@ void GPU_example(CalcMesh* mesh)
 		int nBlocks, MaxBlocks;
 		
 		{
-			MaxThreads = 365;
-			MaxBlocks = 65500;
+			MaxThreads = 512;
+			MaxBlocks = 65535;
 			Task task1;
-			TaskInit(&task1, 1.0, mesh->NumberOfFaces, 0);
+			TaskInit(&task1, 1, mesh->NumberOfFaces, 0);
 			temp2 = 0;
         		cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
 			//printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
@@ -1115,7 +1126,7 @@ void GPU_example(CalcMesh* mesh)
 			while (!task1.IsFinished)
 			{
 				temp2 = 0;
-				cudaToCountFirstFaces<<< nBlocks, nThreads>>>(mesh->Lights[0], 4000.0, cuda_mesh, temp, task1.Subtask1_First, task1.Subtask1_First+task1.Step);
+				cudaToCountFirstFaces<<< nBlocks, nThreads>>>(mesh->Lights[0], 2000.0, cuda_mesh, temp, task1.Subtask1_First, task1.Subtask1_First+task1.Step);
 				//cudaDeviceSynchronize();
 				//cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
                 		//printf("Step = %i \n", task1.Step);
@@ -1136,9 +1147,9 @@ void GPU_example(CalcMesh* mesh)
 
 		
 		{
-			MaxThreads = 315;
+			MaxThreads = 512;
 			Task task2;
-			TaskInit(&task2, 1.0, mesh->NumberOfFaces, mesh->NumberOfFaces);
+			TaskInit(&task2, 1, mesh->NumberOfFaces, mesh->NumberOfFaces); //0.0001 failed
 			temp2 = 0;
         	        cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
 			//printf("DEBUG: cudaToCountSecondAndDoubleFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
@@ -1150,8 +1161,7 @@ void GPU_example(CalcMesh* mesh)
                         while (!task2.IsFinished)
                         {
                                 temp2 = 0;
-				//cudaToCountSecondAndDoubleFaces<<< blocks, nThreads>>>(cuda_mesh, temp, 0,0,mesh->NumberOfFaces, mesh->NumberOfFaces);
-				cudaToCountSecondAndDoubleFaces<<< blocks, nThreads>>>(cuda_mesh, temp, task2.Subtask1_First, task2.Subtask2_First, (task2.Subtask1_First * task2.Subtask2_Total + task2.Subtask2_First + task2.Step) / task2.Subtask2_Total, (task2.Subtask1_First * task2.Subtask2_Total + task2.Subtask2_First + task2.Step) % task2.Subtask2_Total);
+				//cudaToCountSecondAndDoubleFaces<<< blocks, nThreads>>>(mesh->Lights[0], cuda_mesh, temp, task2.Subtask1_First, task2.Subtask2_First, (task2.Subtask1_First * task2.Subtask2_Total + task2.Subtask2_First + task2.Step) / task2.Subtask2_Total, (task2.Subtask1_First * task2.Subtask2_Total + task2.Subtask2_First + task2.Step) % task2.Subtask2_Total);
                                 //cudaDeviceSynchronize();
                                 //cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
                                 //printf("resulst %f \n", temp2);
@@ -1175,8 +1185,8 @@ void GPU_example(CalcMesh* mesh)
 			temp2 = 0;
         	        cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
 			printf("DEBUG: cudaToCountSphere() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
-	                dim3 blocks2(32, 1000);
-			cudaToCountSphere<<< blocks2, 320>>>(cuda_mesh, temp);
+	                dim3 blocks2(32, 3000);
+			//cudaToCountSphere<<< blocks2, 512>>>(cuda_mesh, temp);
 			//prop.maxThreadsPerBlock
 	                printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
         	        cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);

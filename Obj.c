@@ -89,7 +89,7 @@ ObjMesh *MakeOBJ()
 	g_LinkedListHead			= pMesh;
 	
 	
-	ChangeNumberSphereDetalisation(32, pMesh->m_iMeshID);		
+	ChangeNumberSphereDetalisation(28, pMesh->m_iMeshID);		
 	//it is like pMesh->m_iNumberSphereDetalisation = 256;
 	//there is restrict on this number: i think only 2^n
 	
@@ -789,7 +789,7 @@ void DrawLights(const ObjFile id)
 			glTranslated(pMesh->m_aLights[0].x, pMesh->m_aLights[0].y, pMesh->m_aLights[0].z);
 			gluQuadricDrawStyle(GlobalLight, GLU_FILL);
   			glColor3fv(LightColor);
-  			gluSphere(GlobalLight, 20,10,10);
+  			gluSphere(GlobalLight, 10,10,10);
 			glPopMatrix();
 		}
 	}
