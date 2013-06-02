@@ -7,6 +7,7 @@
 #include <math.h>
 //#include <curses.h> readkey
 #include <unistd.h>
+#include <time.h>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -303,7 +304,7 @@ Bool PointInPolygon(CalcVertex *point, CalcFace *face)
 					___XYZPointFrom(face, (i+2) % ___DimOf(face), coordinate2))
 			   ) return false;
 //DEBUG			
-			printf("%d for (%f,%f) and (%f,%f)\n", 			
+			/*printf("%d for (%f,%f) and (%f,%f)\n", 			
 			!ON_ONE_SIDE(
                                         ___XYZOf(point, coordinate1), ___XYZOf(point, coordinate2),
                                         ___XYZPointFrom(face, 0, coordinate1),
@@ -314,7 +315,7 @@ Bool PointInPolygon(CalcVertex *point, CalcFace *face)
                                         ___XYZPointFrom(face, (0+2) % ___DimOf(face), coordinate2)),
 			___XYZPointFrom(face, 0, coordinate1),  ___XYZPointFrom(face, 0, coordinate2),
 			___XYZOf(point, coordinate1), ___XYZOf(point, coordinate2)			
-			);
+			);*/
 			
 
 		}
@@ -962,7 +963,7 @@ void cudaToCountSphere(CalcMesh *mesh, float *ret)
                                                         mesh->SpherePolygonRadiosity[blockY] +=  
 								DFO(mesh->Lights[0], centroidOther, mesh->Faces[blockX].PlaneCoefficients, centroid) * 
 								mesh->Faces[blockX].PowerIn[SGN10(mesh->Faces[blockX].PlaneCoefficients[0]*centroid.x + mesh->Faces[blockX].PlaneCoefficients[1]*centroid.y + mesh->Faces[blockX].PlaneCoefficients[2]*centroid.z + mesh->Faces[blockX].PlaneCoefficients[3])] * Square_4 / (2*pi*INTERVAL_BETWEEN_A_AND_B_2(centroid.x,centroid.y,centroid.z, centroidOther.x,centroidOther.y,centroidOther.z));
-							mesh->SpherePolygonRadiosity[blockY] += 0.0;
+							//mesh->SpherePolygonRadiosity[blockY] += 0.0;
 						}
 					}
 				}	
@@ -1118,6 +1119,11 @@ void GPU_example(CalcMesh* mesh)
 			//printf("DEBUG: cudaToCountFirstFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
 			nThreads = MaxThreads;
 			nBlocks = task1.Step;
+			cudaEvent_t start, stop;
+			float gpuTime = 0.0f, alltime = 0.0f;
+			int it=0;
+			cudaEventCreate( &start );
+			cudaEventCreate( &stop );
 			if (nBlocks > MaxBlocks)
 			{
 				printf("Warning! No more speed up for increase subtask percent! Please, decrease the subtask percent!\n");
@@ -1125,28 +1131,40 @@ void GPU_example(CalcMesh* mesh)
 			}
 			while (!task1.IsFinished)
 			{
+				it++;
 				temp2 = 0;
-				cudaToCountFirstFaces<<< nBlocks, nThreads>>>(mesh->Lights[0], 2000.0, cuda_mesh, temp, task1.Subtask1_First, task1.Subtask1_First+task1.Step);
-				//cudaDeviceSynchronize();
+				cudaEventRecord(start,0);
+				cudaToCountFirstFaces<<< nBlocks, nThreads>>>(mesh->Lights[0], 8000.0, cuda_mesh, temp, task1.Subtask1_First, task1.Subtask1_First+task1.Step);
+				cudaEventRecord(stop, 0);
+				cudaEventSynchronize(stop);
+				cudaEventElapsedTime( &gpuTime, start, stop);
 				//cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
-                		//printf("Step = %i \n", task1.Step);
+                		printf("Total time = %f ms \n", gpuTime);
+				alltime += gpuTime;
+				printf("Average time: %f\n", alltime/it);
 				printf("from %d to %d polygons\n", task1.Subtask1_First, task1.Subtask1_First+task1.Step);
 				printf("on grid: %d x %d\n", nBlocks, nThreads);
 				//cudaDeviceSynchronize();
 				printf("with %s\n",cudaGetErrorString(cudaDeviceSynchronize()));
 				TaskInc(&task1);
-				usleep(100000);
+				//usleep(100000);
 				printf("completed %f percents\n", TaskCompleted(&task1));
 				printf("\n");
 			}
 			printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));	
 			cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 			printf("DEBUG: it's resulsts %f \n", temp2);
+			printf("total time: %.2f\n",alltime);
 			usleep(100000);
 		}
 
 		
 		{
+			cudaEvent_t start, stop;
+                        float gpuTime = 0.0f, alltime = 0.0f;
+                        int it=0;
+                        cudaEventCreate( &start );
+                        cudaEventCreate( &stop );
 			MaxThreads = 512;
 			Task task2;
 			TaskInit(&task2, 1, mesh->NumberOfFaces, mesh->NumberOfFaces); //0.0001 failed
@@ -1155,14 +1173,21 @@ void GPU_example(CalcMesh* mesh)
 			//printf("DEBUG: cudaToCountSecondAndDoubleFaces() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
 			nThreads = MaxThreads;
 			//TODO: non-defined maximum, defined auto
-			dim3 blocks(1000,1000);
-			
+			dim3 blocks(100,1000);
 
                         while (!task2.IsFinished)
                         {
+				it++;
                                 temp2 = 0;
+				cudaEventRecord(start,0);
 				//cudaToCountSecondAndDoubleFaces<<< blocks, nThreads>>>(mesh->Lights[0], cuda_mesh, temp, task2.Subtask1_First, task2.Subtask2_First, (task2.Subtask1_First * task2.Subtask2_Total + task2.Subtask2_First + task2.Step) / task2.Subtask2_Total, (task2.Subtask1_First * task2.Subtask2_Total + task2.Subtask2_First + task2.Step) % task2.Subtask2_Total);
-                                //cudaDeviceSynchronize();
+				cudaEventRecord(stop,0);
+                                cudaEventSynchronize(stop);
+                                cudaEventElapsedTime( &gpuTime, start, stop);
+                                printf("Total time = %f ms \n", gpuTime);
+                                alltime += gpuTime;
+                                printf("Average time: %f\n", alltime/it);
+				//cudaDeviceSynchronize();
                                 //cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
                                 //printf("resulst %f \n", temp2);
                                 printf("from (%d,%d) to (%d,%d) polygons\n", task2.Subtask1_First, task2.Subtask2_First, (task2.Subtask1_First * task2.Subtask2_Total + task2.Subtask2_First + task2.Step) / task2.Subtask2_Total, (task2.Subtask1_First * task2.Subtask2_Total + task2.Subtask2_First + task2.Step) % task2.Subtask2_Total);
@@ -1172,11 +1197,12 @@ void GPU_example(CalcMesh* mesh)
                                 TaskInc(&task2);
                                 printf("completed %f percents\n", TaskCompleted(&task2));
                                 printf("\n");
-                                usleep(100000);
+                                //usleep(100000);
                         }
 			printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
 			cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
 			printf("GPU test 2:%f \n", temp2);
+			printf("total time: %.2f\n",alltime);
 			usleep(100000);
 		}
 		
@@ -1186,7 +1212,7 @@ void GPU_example(CalcMesh* mesh)
         	        cudaMemcpy(temp, &temp2, sizeof(float), cudaMemcpyHostToDevice);
 			printf("DEBUG: cudaToCountSphere() on %i x %i \n ",60000,prop.maxThreadsPerBlock-150);
 	                dim3 blocks2(32, 3000);
-			//cudaToCountSphere<<< blocks2, 512>>>(cuda_mesh, temp);
+			cudaToCountSphere<<< blocks2, 512>>>(cuda_mesh, temp);
 			//prop.maxThreadsPerBlock
 	                printf("%s\n",cudaGetErrorString(cudaThreadSynchronize()));
         	        cudaMemcpy(&temp2, temp, sizeof(float), cudaMemcpyDeviceToHost);
@@ -1244,4 +1270,16 @@ BUG Ham		point2.x = -34.475559;
 	cudaFree(temp_mesh.VertexArray);
 
 
+
+	//ON CPU
+	/*{
+		printf("TIMER UP\n");
+        	time_t startClock, endClock;
+		startClock = time(NULL);
+		OLDToCountFirstFaces(&mesh->Lights[0], mesh);
+		endClock = time(NULL);
+		double diff = difftime(endClock, startClock);
+		printf("TIMER DOWN\n");
+		printf("TOTAL TIME %f\n", diff);
+	}*/
 }

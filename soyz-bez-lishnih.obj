@@ -2,6 +2,7 @@
 # www.blender.org
 mtllib soyz-bez-lishnih.mtl
 o Box014
+#spacelight 0.5 -7.5 20.0
 v -0.013647 -0.493494 7.551345
 v 0.001488 -0.476704 7.557918
 v -0.044274 -0.428309 7.539666

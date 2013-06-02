@@ -89,7 +89,7 @@ ObjMesh *MakeOBJ()
 	g_LinkedListHead			= pMesh;
 	
 	
-	ChangeNumberSphereDetalisation(28, pMesh->m_iMeshID);		
+	ChangeNumberSphereDetalisation(32, pMesh->m_iMeshID);		
 	//it is like pMesh->m_iNumberSphereDetalisation = 256;
 	//there is restrict on this number: i think only 2^n
 	

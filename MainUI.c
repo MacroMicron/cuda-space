@@ -399,6 +399,12 @@ void Keyboard(unsigned char Key, int x, int y) {
 		else printf("Error in file saving!\n");
 	}
 	
+	if (Key == 'I'|| Key == 'i') {
+		camera.View[0] = -camera.View[0];
+		camera.View[1] = -camera.View[1];
+		camera.View[2] = -camera.View[2];
+	}
+	
 	glutPostRedisplay();
 }
 
